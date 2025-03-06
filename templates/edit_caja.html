@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% block title %}Editar Caja{% endblock %}
+{% block content %}
+<h2>Editar Caja</h2>
+<form method="POST">
+  {{ form.hidden_tag() }}
+  <div class="mb-3">
+    {{ form.departamento.label(class="form-label") }}
+    {{ form.departamento(class="form-select") }}
+  </div>
+  <div class="mb-3">
+    {{ form.años.label(class="form-label") }}
+    {{ form.años(class="form-control") }}
+  </div>
+  <div class="mb-3">
+    {{ form.tipo.label(class="form-label") }}
+    {{ form.tipo(class="form-select") }}
+  </div>
+  <div class="mb-3">
+    {{ form.observacion.label(class="form-label") }}
+    {{ form.observacion(class="form-control", rows="3") }}
+  </div>
+  <div class="mb-3">
+    {{ form.bodega.label(class="form-label") }}
+    {{ form.bodega(class="form-select") }}
+  </div>
+  <div class="mb-3">
+    {{ form.ubicacion.label(class="form-label") }}
+    {{ form.ubicacion(class="form-select") }}
+  </div>
+  <div class="mb-3">
+    {{ form.percha.label(class="form-label") }}
+    {{ form.percha(class="form-control") }}
+  </div>
+  <div class="mb-3">
+    {{ form.fila.label(class="form-label") }}
+    {{ form.fila(class="form-control") }}
+  </div>
+  <div class="mb-3">
+    {{ form.columna.label(class="form-label") }}
+    {{ form.columna(class="form-control") }}
+  </div>
+  <div class="mb-3">
+    {{ form.submit(class="btn btn-primary") }}
+  </div>
+</form>
+{% endblock %}

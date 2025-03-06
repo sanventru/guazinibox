@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>GuaziniBox - {% block title %}{% endblock %}</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <style>
+    body { padding-top: 70px; }
+  </style>
+</head>
+<body>
+  <nav class="navbar navbar-expand-lg navbar-dark bg-dark fixed-top">
+    <div class="container">
+      <a class="navbar-brand" href="{{ url_for('index') }}">GuaziniBox</a>
+      <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" 
+              aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+        <span class="navbar-toggler-icon"></span>
+      </button>
+      {% if current_user.is_authenticated %}
+      <div class="collapse navbar-collapse" id="navbarNav">
+        <ul class="navbar-nav me-auto">
+          <li class="nav-item"><a class="nav-link" href="{{ url_for('cajas') }}">Cajas</a></li>
+          <li class="nav-item"><a class="nav-link" href="{{ url_for('prestamos') }}">Préstamos</a></li>
+          <li class="nav-item"><a class="nav-link" href="{{ url_for('search_caja') }}">Buscar Caja</a></li>
+          <!-- Nueva funcionalidad -->
+          <li class="nav-item"><a class="nav-link" href="{{ url_for('print_qr') }}">Imprimir QR</a></li>
+          <li class="nav-item dropdown">
+            <a class="nav-link dropdown-toggle" href="#" id="catalogosDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+              Catálogos
+            </a>
+            <ul class="dropdown-menu" aria-labelledby="catalogosDropdown">
+              <li><a class="dropdown-item" href="{{ url_for('departamentos') }}">Departamentos</a></li>
+              <li><a class="dropdown-item" href="{{ url_for('tipos') }}">Tipos</a></li>
+              <li><a class="dropdown-item" href="{{ url_for('bodegas') }}">Bodegas</a></li>
+              <li><a class="dropdown-item" href="{{ url_for('ubicaciones') }}">Ubicaciones</a></li>
+            </ul>
+          </li>
+        </ul>
+        <ul class="navbar-nav">
+          <li class="nav-item"><span class="nav-link">Usuario: {{ current_user.username }}</span></li>
+          <li class="nav-item"><a class="nav-link" href="{{ url_for('logout') }}">Cerrar sesión</a></li>
+        </ul>
+      </div>
+      {% else %}
+      <ul class="navbar-nav ms-auto">
+        <li class="nav-item"><a class="nav-link" href="{{ url_for('login') }}">Iniciar Sesión</a></li>
+        <li class="nav-item"><a class="nav-link" href="{{ url_for('register') }}">Registrarse</a></li>
+      </ul>
+      {% endif %}
+    </div>
+  </nav>
+  <div class="container mt-4">
+    {% with messages = get_flashed_messages() %}
+      {% if messages %}
+        <div class="alert alert-info">
+          {% for message in messages %}
+            <div>{{ message }}</div>
+          {% endfor %}
+        </div>
+      {% endif %}
+    {% endwith %}
+    {% block content %}{% endblock %}
+  </div>
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

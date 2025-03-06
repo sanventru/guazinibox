@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% block title %}Editar Departamento{% endblock %}
+{% block content %}
+<h2>Editar Departamento</h2>
+<form method="POST">
+  {{ form.hidden_tag() }}
+  <div class="mb-3">
+    {{ form.nombre.label(class="form-label") }}
+    {{ form.nombre(class="form-control") }}
+  </div>
+  <div class="mb-3">
+    {{ form.submit(class="btn btn-primary") }}
+  </div>
+</form>
+{% endblock %}

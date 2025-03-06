@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% block title %}Préstamos{% endblock %}
+{% block content %}
+<h2>Préstamos</h2>
+<a href="{{ url_for('add_prestamo_route') }}" class="btn btn-success mb-3">Agregar Préstamo</a>
+<table class="table table-bordered table-striped">
+  <thead>
+    <tr>
+      <th>ID</th>
+      <th>ID Caja</th>
+      <th>Item</th>
+      <th>Fecha de Préstamo</th>
+      <th>Fecha Límite</th>
+      <th>Devuelto</th>
+      <th>Email</th>
+      <th>Acciones</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for prestamo in prestamos %}
+    <tr>
+      <td>{{ prestamo.id }}</td>
+      <td>{{ prestamo.caja_id }}</td>
+      <td>{{ prestamo.item }}</td>
+      <td>{{ prestamo.loan_date }}</td>
+      <td>{{ prestamo.due_date }}</td>
+      <td>{{ 'Sí' if prestamo.returned else 'No' }}</td>
+      <td>{{ prestamo.email }}</td>
+      <td>
+        <a href="{{ url_for('edit_prestamo', prestamo_id=prestamo.id) }}" class="btn btn-primary btn-sm">Editar</a>
+        <form action="{{ url_for('delete_prestamo_route', prestamo_id=prestamo.id) }}" method="POST" style="display:inline-block;" onsubmit="return confirm('¿Estás seguro de eliminar este préstamo?');">
+          <button type="submit" class="btn btn-danger btn-sm">Eliminar</button>
+        </form>
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endblock %}

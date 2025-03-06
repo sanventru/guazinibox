@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% block title %}Impresión Masiva de QR{% endblock %}
+{% block content %}
+<div class="container mt-4">
+  <h2>Impresión Masiva de Códigos QR</h2>
+  <form method="POST">
+    <div class="form-group">
+      <label for="start_range">Rango desde (ej. 0001):</label>
+      <input type="text" name="start_range" id="start_range" class="form-control" placeholder="0001" required>
+    </div>
+    <div class="form-group mt-3">
+      <label for="end_range">Rango hasta (ej. 0050):</label>
+      <input type="text" name="end_range" id="end_range" class="form-control" placeholder="0050" required>
+    </div>
+    <button type="submit" class="btn btn-primary mt-3">Mostrar Códigos QR</button>
+  </form>
+</div>
+{% endblock %}

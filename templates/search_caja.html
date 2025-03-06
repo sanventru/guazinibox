@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+{% block title %}Buscar Caja{% endblock %}
+{% block content %}
+<h2>Buscar Caja</h2>
+<form method="GET" class="mb-3">
+  <div class="input-group">
+    <input type="text" name="query" class="form-control" placeholder="Ingrese término de búsqueda" value="{{ query }}">
+    <button type="submit" class="btn btn-primary">Buscar</button>
+  </div>
+</form>
+{% if cajas %}
+  <h3>Resultados:</h3>
+  <table class="table table-bordered table-striped">
+    <thead>
+      <tr>
+        <th>ID</th>
+        <th>ID Caja</th>
+        <th>Departamento</th>
+        <th>Años</th>
+        <th>Tipo</th>
+        <th>Observación</th>
+        <th>Bodega</th>
+        <th>Ubicación</th>
+        <th>Percha</th>
+        <th>Fila</th>
+        <th>Columna</th>
+        <th>QR</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for caja in cajas %}
+      <tr>
+        <td>{{ caja.id }}</td>
+        <td>{{ caja.id_caja }}</td>
+        <td>{{ caja.departamento }}</td>
+        <td>{{ caja.años }}</td>
+        <td>{{ caja.tipo }}</td>
+        <td>{{ caja.observacion }}</td>
+        <td>{{ caja.bodega }}</td>
+        <td>{{ caja.ubicacion }}</td>
+        <td>{{ caja.percha }}</td>
+        <td>{{ caja.fila }}</td>
+        <td>{{ caja.columna }}</td>
+        <td>
+          <img src="{{ url_for('static', filename='qr_codes/' ~ caja.id_caja ~ '.png') }}" alt="QR" width="80">
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+{% elif query %}
+  <p>No se encontraron resultados.</p>
+{% endif %}
+{% endblock %}

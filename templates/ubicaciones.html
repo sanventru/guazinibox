@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% block title %}Ubicaciones{% endblock %}
+{% block content %}
+<h2>Ubicaciones</h2>
+<a href="{{ url_for('add_ubicacion') }}" class="btn btn-success mb-3">Agregar Ubicación</a>
+<table class="table table-bordered table-striped">
+  <thead>
+    <tr>
+      <th>ID</th>
+      <th>Nombre</th>
+      <th>Tamaño</th>
+      <th>Acciones</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for ubicacion in ubicaciones %}
+    <tr>
+      <td>{{ ubicacion.id }}</td>
+      <td>{{ ubicacion.nombre }}</td>
+      <td>{{ ubicacion.tamano }}</td>
+      <td>
+        <a href="{{ url_for('edit_ubicacion', ubicacion_id=ubicacion.id) }}" class="btn btn-primary btn-sm">Editar</a>
+        <form action="{{ url_for('delete_ubicacion', ubicacion_id=ubicacion.id) }}" method="POST" style="display:inline-block;" onsubmit="return confirm('¿Estás seguro de eliminar esta ubicación?');">
+          <button type="submit" class="btn btn-danger btn-sm">Eliminar</button>
+        </form>
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endblock %}

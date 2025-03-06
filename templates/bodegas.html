@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block title %}Bodegas{% endblock %}
+{% block content %}
+<h2>Bodegas</h2>
+<a href="{{ url_for('add_bodega') }}" class="btn btn-success mb-3">Agregar Bodega</a>
+<table class="table table-bordered table-striped">
+  <thead>
+    <tr>
+      <th>ID</th>
+      <th>Nombre</th>
+      <th>Acciones</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for bodega in bodegas %}
+    <tr>
+      <td>{{ bodega.id }}</td>
+      <td>{{ bodega.nombre }}</td>
+      <td>
+        <a href="{{ url_for('edit_bodega', bodega_id=bodega.id) }}" class="btn btn-primary btn-sm">Editar</a>
+        <form action="{{ url_for('delete_bodega', bodega_id=bodega.id) }}" method="POST" style="display:inline-block;" onsubmit="return confirm('¿Estás seguro de eliminar esta bodega?');">
+          <button type="submit" class="btn btn-danger btn-sm">Eliminar</button>
+        </form>
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endblock %}

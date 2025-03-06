@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% block title %}Editar Ubicación{% endblock %}
+{% block content %}
+<h2>Editar Ubicación</h2>
+<form method="POST">
+  {{ form.hidden_tag() }}
+  <div class="mb-3">
+    {{ form.nombre.label(class="form-label") }}
+    {{ form.nombre(class="form-control") }}
+  </div>
+  <div class="mb-3">
+    {{ form.tamano.label(class="form-label") }}
+    {{ form.tamano(class="form-control") }}
+  </div>
+  <div class="mb-3">
+    {{ form.submit(class="btn btn-primary") }}
+  </div>
+</form>
+{% endblock %}

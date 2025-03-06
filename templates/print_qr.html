@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block title %}Impresión Masiva de QR{% endblock %}
+{% block content %}
+<div class="container mt-4">
+  <h2>Códigos QR desde {{ start_range }} hasta {{ end_range }}</h2>
+  <div class="row">
+    {% for caja in cajas %}
+    <div class="col-md-3 col-sm-4 col-xs-6 mb-4 text-center">
+      <div class="card">
+        <img class="card-img-top" src="{{ url_for('static', filename='qr_codes/' ~ caja.id_caja ~ '.png') }}" alt="QR de Caja {{ caja.id_caja }}">
+        <div class="card-body p-2">
+          <h5 class="card-title mb-1">Caja {{ caja.id_caja }}</h5>
+          <p class="card-text small">
+            {% if caja.departamento %}{{ caja.departamento }}{% endif %}<br>
+            {% if caja.tipo %}{{ caja.tipo }}{% endif %}
+          </p>
+        </div>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+  <div class="text-center mb-4">
+    <button class="btn btn-success" onclick="window.print()">Imprimir</button>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+{% block title %}Carátula de Caja {{ caja.id_caja }}{% endblock %}
+{% block content %}
+<div class="mt-3 mb-3 p-3 border">
+  <div class="row">
+    <div class="col-8">
+      <h3 class="mb-0">Sociedad de Lucha Contra el Cáncer del Ecuador</h3>
+      <h5>Bodega de Archivo: {{ caja.bodega or '' }}</h5>
+    </div>
+    <div class="col-4 text-end">
+      <strong>No. Caja:</strong> {{ caja.id_caja }}<br>
+      {% if caja.qr_path %}
+        <img src="{{ url_for('static', filename='qr_codes/' ~ caja.id_caja ~ '.png') }}"
+             alt="QR {{ caja.id_caja }}"
+             style="width:100px;">
+      {% endif %}
+    </div>
+  </div>
+  <hr>
+  <div class="row">
+    <div class="col-4">
+      <strong>Departamento:</strong> {{ caja.departamento or '' }}
+    </div>
+    <div class="col-4">
+      <strong>Tipo de Información:</strong> {{ caja.tipo or '' }}
+    </div>
+    <div class="col-4">
+      <strong>Años:</strong> {{ caja.años or '' }}
+    </div>
+  </div>
+  <div class="row mt-3">
+    <div class="col-6">
+      <strong>Ubicación:</strong> {{ caja.ubicacion or '' }}
+      <br>
+      <strong>Percha:</strong> {{ caja.percha or '' }}
+      <br>
+      <strong>Fila:</strong> {{ caja.fila or '' }}
+      <br>
+      <strong>Columna:</strong> {{ caja.columna or '' }}
+    </div>
+    <div class="col-6">
+      <strong>Observación:</strong>
+      <p>{{ caja.observacion or '' }}</p>
+    </div>
+  </div>
+</div>
+
+<div class="text-center">
+  <button class="btn btn-primary" onclick="window.print()">Imprimir</button>
+</div>
+{% endblock %}
