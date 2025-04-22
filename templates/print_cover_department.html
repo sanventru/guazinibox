@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block title %}Imprimir Portadas por Departamento{% endblock %}
+{% block content %}
+<div class="container">
+  <h2 class="mb-4">Imprimir Portadas por Departamento</h2>
+  
+  <div class="card">
+    <div class="card-header">
+      <h5 class="mb-0">Seleccione un departamento para imprimir portadas de todas sus cajas</h5>
+    </div>
+    <div class="card-body">
+      <form method="POST" action="{{ url_for('print_cover_department') }}">
+        <div class="mb-3">
+          <label for="departamento_id" class="form-label">Departamento</label>
+          <select name="departamento_id" id="departamento_id" class="form-select" required>
+            <option value="">-- Seleccione un departamento --</option>
+            {% for departamento in departamentos %}
+              <option value="{{ departamento.id }}">{{ departamento.nombre }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <button type="submit" class="btn btn-primary">Imprimir Portadas</button>
+        <a href="{{ url_for('index') }}" class="btn btn-secondary">Cancelar</a>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}

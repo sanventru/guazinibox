@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block title %}Imprimir Portada de Caja{% endblock %}
+{% block content %}
+<div class="container">
+  <h2 class="mb-4">Imprimir Portada de Caja</h2>
+  
+  <div class="card">
+    <div class="card-header">
+      <h5 class="mb-0">Seleccione una caja para imprimir su portada</h5>
+    </div>
+    <div class="card-body">
+      <form method="POST" action="{{ url_for('print_cover_caja') }}">
+        <div class="mb-3">
+          <label for="caja_id" class="form-label">Caja</label>
+          <select name="caja_id" id="caja_id" class="form-select" required>
+            <option value="">-- Seleccione una caja --</option>
+            {% for caja in cajas %}
+              <option value="{{ caja.id }}">Caja {{ caja.id_caja }} - {{ caja.departamento }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <button type="submit" class="btn btn-primary">Imprimir Portada</button>
+        <a href="{{ url_for('index') }}" class="btn btn-secondary">Cancelar</a>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}

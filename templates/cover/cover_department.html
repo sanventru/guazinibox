@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Portadas de Departamento</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+        }
+        .portada-container {
+            page-break-after: always;
+            margin-bottom: 30px;
+        }
+        @media print {
+            .no-print {
+                display: none;
+            }
+            .portada-container {
+                page-break-after: always;
+            }
+        }
+        .btn-container {
+            text-align: center;
+            margin: 20px 0;
+        }
+        .btn {
+            background-color: #007bff;
+            color: white;
+            padding: 10px 20px;
+            text-decoration: none;
+            border-radius: 5px;
+            margin: 0 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="btn-container no-print">
+        <button class="btn" onclick="window.print()">Imprimir Portadas</button>
+        <a class="btn" href="{{ url_for('print_cover_department') }}">Volver</a>
+    </div>
+
+    {% for caja in cajas %}
+        <div class="portada-container">
+            {% set dept_name = (caja.departamento or "default") | replace(" ", "_") %}
+            {% set template_name = "cover/" ~ dept_name ~ ".html" %}
+            
+            {# Intentamos incluir la plantilla específica del departamento #}
+            {% include [template_name, "cover/default.html"] ignore missing %}
+        </div>
+    {% endfor %}
+</body>
+</html>

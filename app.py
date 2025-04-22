@@ -144,6 +144,13 @@ def get_user_by_username(username):
         return None
     return User(user["id"], user["username"], user["password"])
 
+def update_user_password(user_id, new_password):
+    conn = get_db_connection()
+    hashed_password = generate_password_hash(new_password)
+    conn.execute("UPDATE users SET password = ? WHERE id = ?", (hashed_password, user_id))
+    conn.commit()
+    conn.close()
+
 @login_manager.user_loader
 def load_user(user_id):
     return get_user_by_id(user_id)
@@ -161,6 +168,12 @@ class RegistrationForm(FlaskForm):
     password = PasswordField("Contraseña", validators=[DataRequired(), Length(min=6)])
     confirm_password = PasswordField("Confirmar Contraseña", validators=[DataRequired(), EqualTo('password')])
     submit = SubmitField("Registrarse")
+
+class ChangePasswordForm(FlaskForm):
+    current_password = PasswordField("Contraseña Actual", validators=[DataRequired()])
+    new_password = PasswordField("Nueva Contraseña", validators=[DataRequired(), Length(min=6)])
+    confirm_password = PasswordField("Confirmar Nueva Contraseña", validators=[DataRequired(), EqualTo('new_password')])
+    submit = SubmitField("Cambiar Contraseña")
 
 # Nuevo formulario para cajas con los nuevos campos
 class CajaForm(FlaskForm):
@@ -439,8 +452,24 @@ def login():
 @login_required
 def logout():
     logout_user()
-    flash("Has cerrado sesión.")
+    flash("Has cerrado sesión correctamente", "success")
     return redirect(url_for("login"))
+
+@app.route("/cambiar-clave", methods=["GET", "POST"])
+@login_required
+def cambiar_clave():
+    form = ChangePasswordForm()
+    if form.validate_on_submit():
+        user = get_user_by_id(current_user.id)
+        # Verificar que la contraseña actual sea correcta
+        if check_password_hash(user.password, form.current_password.data):
+            # Actualizar la contraseña
+            update_user_password(user.id, form.new_password.data)
+            flash("Tu contraseña ha sido actualizada correctamente", "success")
+            return redirect(url_for("index"))
+        else:
+            flash("La contraseña actual es incorrecta", "danger")
+    return render_template("cambiar_clave.html", form=form)
 
 @app.route("/register", methods=["GET", "POST"])
 def register():
@@ -887,6 +916,48 @@ def cover_department(dep_id):
 
 
 
+
+# ========================================================
+# Rutas para impresión de portadas
+# ========================================================
+@app.route("/print-cover-caja", methods=["GET", "POST"])
+@login_required
+def print_cover_caja():
+    if request.method == "POST":
+        caja_id = request.form.get("caja_id")
+        if caja_id:
+            return redirect(url_for("cover_caja", caja_id=caja_id))
+        else:
+            flash("Por favor, seleccione una caja", "warning")
+    
+    # Obtener todas las cajas para el selector
+    conn = get_db_connection()
+    cajas = conn.execute("""
+        SELECT cajas.id, cajas.id_caja, departamentos.nombre AS departamento
+        FROM cajas
+        LEFT JOIN departamentos ON cajas.departamento_id = departamentos.id
+        ORDER BY CAST(cajas.id_caja AS INTEGER) ASC
+    """).fetchall()
+    conn.close()
+    
+    return render_template("print_cover_caja.html", cajas=cajas)
+
+@app.route("/print-cover-department", methods=["GET", "POST"])
+@login_required
+def print_cover_department():
+    if request.method == "POST":
+        dep_id = request.form.get("departamento_id")
+        if dep_id:
+            return redirect(url_for("cover_department", dep_id=dep_id))
+        else:
+            flash("Por favor, seleccione un departamento", "warning")
+    
+    # Obtener todos los departamentos para el selector
+    conn = get_db_connection()
+    departamentos = conn.execute("SELECT id, nombre FROM departamentos ORDER BY nombre").fetchall()
+    conn.close()
+    
+    return render_template("print_cover_department.html", departamentos=departamentos)
 
 # ========================================================
 # Inicio del Scheduler y ejecución de la aplicación
