@@ -19,6 +19,12 @@
   <div class="mb-3">
     {{ form.observacion.label(class="form-label") }}
     {{ form.observacion(class="form-control", rows="3") }}
+    <small class="form-text text-muted">Ingrese una observación breve de la caja</small>
+  </div>
+  <div class="mb-3">
+    {{ form.descripcion.label(class="form-label") }}
+    {{ form.descripcion(class="form-control", rows="6", style="min-height: 150px;") }}
+    <small class="form-text text-muted">Ingrese una descripción detallada del contenido de la caja</small>
   </div>
   <div class="mb-3">
     {{ form.bodega.label(class="form-label") }}

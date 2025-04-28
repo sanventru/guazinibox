@@ -40,7 +40,13 @@
     </div>
     <div class="col-6">
       <strong>Observación:</strong>
-      <p>{{ caja.observacion or '' }}</p>
+      <div class="border p-2 mt-1 mb-2" style="min-height: 60px; max-height: 80px; overflow-y: auto;">
+        {{ caja.observacion or '' }}
+      </div>
+      <strong>Descripción detallada:</strong>
+      <div class="border p-2 mt-1" style="min-height: 120px; max-height: 200px; overflow-y: auto;">
+        {{ caja.descripcion or '' }}
+      </div>
     </div>
   </div>
 </div>

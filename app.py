@@ -3,6 +3,7 @@ import time
 import random
 import sqlite3
 import datetime
+import secrets
 import threading
 import smtplib
 import schedule
@@ -47,7 +48,10 @@ def create_tables():
         CREATE TABLE IF NOT EXISTS users (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             username TEXT UNIQUE NOT NULL,
-            password TEXT NOT NULL
+            password TEXT NOT NULL,
+            email TEXT UNIQUE,
+            reset_token TEXT,
+            token_expiry TIMESTAMP
         )
     """)
     # Tabla de departamentos
@@ -88,7 +92,8 @@ def create_tables():
             departamento_id INTEGER,
             años TEXT,
             tipo_id INTEGER,
-            observacion TEXT,
+            observacion TEXT COLLATE NOCASE, 
+            descripcion TEXT COLLATE NOCASE, 
             bodega_id INTEGER,
             ubicacion_id INTEGER,
             percha TEXT,
@@ -123,10 +128,13 @@ create_tables()
 # Modelo de Usuario para Flask-Login
 # ========================================================
 class User(UserMixin):
-    def __init__(self, id, username, password):
+    def __init__(self, id, username, password, email=None, reset_token=None, token_expiry=None):
         self.id = id
         self.username = username
         self.password = password
+        self.email = email
+        self.reset_token = reset_token
+        self.token_expiry = token_expiry
 
 def get_user_by_id(user_id):
     conn = get_db_connection()
@@ -134,7 +142,10 @@ def get_user_by_id(user_id):
     conn.close()
     if not user:
         return None
-    return User(user["id"], user["username"], user["password"])
+    return User(user["id"], user["username"], user["password"], 
+               user["email"] if "email" in user.keys() else None,
+               user["reset_token"] if "reset_token" in user.keys() else None,
+               user["token_expiry"] if "token_expiry" in user.keys() else None)
 
 def get_user_by_username(username):
     conn = get_db_connection()
@@ -142,14 +153,55 @@ def get_user_by_username(username):
     conn.close()
     if not user:
         return None
-    return User(user["id"], user["username"], user["password"])
+    return User(user["id"], user["username"], user["password"], 
+               user["email"] if "email" in user.keys() else None,
+               user["reset_token"] if "reset_token" in user.keys() else None,
+               user["token_expiry"] if "token_expiry" in user.keys() else None)
 
 def update_user_password(user_id, new_password):
     conn = get_db_connection()
     hashed_password = generate_password_hash(new_password)
-    conn.execute("UPDATE users SET password = ? WHERE id = ?", (hashed_password, user_id))
+    conn.execute("UPDATE users SET password = ?, reset_token = NULL, token_expiry = NULL WHERE id = ?", (hashed_password, user_id))
     conn.commit()
     conn.close()
+
+def update_user_email(user_id, email):
+    conn = get_db_connection()
+    conn.execute("UPDATE users SET email = ? WHERE id = ?", (email, user_id))
+    conn.commit()
+    conn.close()
+
+def get_user_by_email(email):
+    conn = get_db_connection()
+    user = conn.execute("SELECT * FROM users WHERE email = ?", (email,)).fetchone()
+    conn.close()
+    if not user:
+        return None
+    return User(user["id"], user["username"], user["password"], 
+               user["email"] if "email" in user.keys() else None,
+               user["reset_token"] if "reset_token" in user.keys() else None,
+               user["token_expiry"] if "token_expiry" in user.keys() else None)
+
+def get_user_by_reset_token(token):
+    conn = get_db_connection()
+    user = conn.execute("SELECT * FROM users WHERE reset_token = ?", (token,)).fetchone()
+    conn.close()
+    if not user:
+        return None
+    return User(user["id"], user["username"], user["password"], 
+               user["email"] if "email" in user.keys() else None,
+               user["reset_token"] if "reset_token" in user.keys() else None,
+               user["token_expiry"] if "token_expiry" in user.keys() else None)
+
+def generate_reset_token(user_id):
+    token = secrets.token_urlsafe(32)
+    expiry = datetime.datetime.now() + datetime.timedelta(hours=24)
+    conn = get_db_connection()
+    conn.execute("UPDATE users SET reset_token = ?, token_expiry = ? WHERE id = ?", 
+                (token, expiry.isoformat(), user_id))
+    conn.commit()
+    conn.close()
+    return token
 
 @login_manager.user_loader
 def load_user(user_id):
@@ -175,12 +227,27 @@ class ChangePasswordForm(FlaskForm):
     confirm_password = PasswordField("Confirmar Nueva Contraseña", validators=[DataRequired(), EqualTo('new_password')])
     submit = SubmitField("Cambiar Contraseña")
 
+class UpdateEmailForm(FlaskForm):
+    email = StringField("Correo Electrónico", validators=[DataRequired(), Email()])
+    password = PasswordField("Contraseña Actual", validators=[DataRequired()])
+    submit = SubmitField("Actualizar Correo")
+
+class ForgotPasswordForm(FlaskForm):
+    email = StringField("Correo Electrónico", validators=[DataRequired(), Email()])
+    submit = SubmitField("Enviar Enlace de Recuperación")
+
+class ResetPasswordForm(FlaskForm):
+    password = PasswordField("Nueva Contraseña", validators=[DataRequired(), Length(min=6)])
+    confirm_password = PasswordField("Confirmar Nueva Contraseña", validators=[DataRequired(), EqualTo('password')])
+    submit = SubmitField("Restablecer Contraseña")
+
 # Nuevo formulario para cajas con los nuevos campos
 class CajaForm(FlaskForm):
     departamento = SelectField("Departamento", choices=[], coerce=int, validators=[DataRequired()])
     años = StringField("Años", validators=[DataRequired()])
     tipo = SelectField("Tipo", choices=[], coerce=int, validators=[DataRequired()])
     observacion = TextAreaField("Observación")
+    descripcion = TextAreaField("Descripción detallada")
     bodega = SelectField("Bodega", choices=[], coerce=int, validators=[DataRequired()])
     ubicacion = SelectField("Ubicación", choices=[], coerce=int, validators=[DataRequired()])
     percha = StringField("Percha", validators=[DataRequired()])
@@ -230,26 +297,26 @@ def get_next_id_caja():
     next_id = 1 if max_id is None else int(max_id) + 1
     return str(next_id).zfill(4)
 
-def add_caja(departamento_id, años, tipo_id, observacion, bodega_id, ubicacion_id, percha, fila, columna):
+def add_caja(departamento_id, años, tipo_id, observacion, descripcion, bodega_id, ubicacion_id, percha, fila, columna):
     conn = get_db_connection()
     cursor = conn.cursor()
     id_caja = get_next_id_caja()
     qr_filename = os.path.join(QR_DIR, f"{id_caja}.png")
     generate_qr_code(id_caja, qr_filename)
     cursor.execute(
-       "INSERT INTO cajas (id_caja, departamento_id, años, tipo_id, observacion, bodega_id, ubicacion_id, percha, fila, columna, qr_path) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-       (id_caja, departamento_id, años, tipo_id, observacion, bodega_id, ubicacion_id, percha, fila, columna, qr_filename)
+       "INSERT INTO cajas (id_caja, departamento_id, años, tipo_id, observacion, descripcion, bodega_id, ubicacion_id, percha, fila, columna, qr_path) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+       (id_caja, departamento_id, años, tipo_id, observacion, descripcion, bodega_id, ubicacion_id, percha, fila, columna, qr_filename)
     )
     conn.commit()
     conn.close()
     return id_caja
 
-def update_caja(caja_id, departamento_id, años, tipo_id, observacion, bodega_id, ubicacion_id, percha, fila, columna):
+def update_caja(caja_id, departamento_id, años, tipo_id, observacion, descripcion, bodega_id, ubicacion_id, percha, fila, columna):
     conn = get_db_connection()
     cursor = conn.cursor()
     cursor.execute(
-        "UPDATE cajas SET departamento_id = ?, años = ?, tipo_id = ?, observacion = ?, bodega_id = ?, ubicacion_id = ?, percha = ?, fila = ?, columna = ? WHERE id = ?",
-        (departamento_id, años, tipo_id, observacion, bodega_id, ubicacion_id, percha, fila, columna, caja_id)
+        "UPDATE cajas SET departamento_id = ?, años = ?, tipo_id = ?, observacion = ?, descripcion = ?, bodega_id = ?, ubicacion_id = ?, percha = ?, fila = ?, columna = ? WHERE id = ?",
+        (departamento_id, años, tipo_id, observacion, descripcion, bodega_id, ubicacion_id, percha, fila, columna, caja_id)
     )
     conn.commit()
     conn.close()
@@ -452,8 +519,92 @@ def login():
 @login_required
 def logout():
     logout_user()
-    flash("Has cerrado sesión correctamente", "success")
+    flash("Has cerrado sesión correctamente.")
     return redirect(url_for("login"))
+
+@app.route("/update_email", methods=["GET", "POST"])
+@login_required
+def update_email():
+    form = UpdateEmailForm()
+    if form.validate_on_submit():
+        if check_password_hash(current_user.password, form.password.data):
+            # Verificar si el correo ya está en uso
+            existing_user = get_user_by_email(form.email.data)
+            if existing_user and existing_user.id != current_user.id:
+                flash("Este correo electrónico ya está registrado.")
+                return render_template("update_email.html", form=form)
+            
+            update_user_email(current_user.id, form.email.data)
+            flash("Correo electrónico actualizado correctamente.")
+            return redirect(url_for("index"))
+        else:
+            flash("Contraseña incorrecta.")
+    return render_template("update_email.html", form=form)
+
+@app.route("/forgot_password", methods=["GET", "POST"])
+def forgot_password():
+    if current_user.is_authenticated:
+        return redirect(url_for("index"))
+    
+    form = ForgotPasswordForm()
+    if form.validate_on_submit():
+        user = get_user_by_email(form.email.data)
+        if user:
+            token = generate_reset_token(user.id)
+            reset_url = url_for("reset_password", token=token, _external=True)
+            
+            # Enviar correo con el enlace de recuperación
+            subject = "Recuperación de contraseña - GuaziniBox"
+            message = f"""Hola {user.username},
+
+Has solicitado restablecer tu contraseña. Por favor, haz clic en el siguiente enlace para crear una nueva contraseña:
+
+{reset_url}
+
+Este enlace expirará en 24 horas.
+
+Si no solicitaste este cambio, puedes ignorar este mensaje.
+
+Saludos,
+Equipo de GuaziniBox"""
+            
+            try:
+                send_email(user.email, subject, message)
+                flash("Se ha enviado un enlace de recuperación a tu correo electrónico.")
+            except Exception as e:
+                flash(f"Error al enviar el correo: {str(e)}")
+        else:
+            # Por seguridad, no revelamos si el correo existe o no
+            flash("Si el correo está registrado, recibirás un enlace de recuperación.")
+        
+        return redirect(url_for("login"))
+    
+    return render_template("forgot_password.html", form=form)
+
+@app.route("/reset_password/<token>", methods=["GET", "POST"])
+def reset_password(token):
+    if current_user.is_authenticated:
+        return redirect(url_for("index"))
+    
+    user = get_user_by_reset_token(token)
+    if not user:
+        flash("El enlace de recuperación es inválido o ha expirado.")
+        return redirect(url_for("login"))
+    
+    # Verificar si el token ha expirado
+    if user.token_expiry:
+        expiry = datetime.datetime.fromisoformat(user.token_expiry)
+        if datetime.datetime.now() > expiry:
+            flash("El enlace de recuperación ha expirado.")
+            return redirect(url_for("login"))
+    
+    form = ResetPasswordForm()
+    if form.validate_on_submit():
+        update_user_password(user.id, form.password.data)
+        flash("Tu contraseña ha sido actualizada. Ahora puedes iniciar sesión.")
+        return redirect(url_for("login"))
+    
+    return render_template("reset_password.html", form=form)
 
 @app.route("/cambiar-clave", methods=["GET", "POST"])
 @login_required
@@ -515,7 +666,7 @@ def add_caja_route():
     form.ubicacion.choices = [(u["id"], u["nombre"]) for u in get_ubicaciones()]
     if form.validate_on_submit():
         id_caja = add_caja(form.departamento.data, form.años.data, form.tipo.data, form.observacion.data,
-                           form.bodega.data, form.ubicacion.data, form.percha.data, form.fila.data, form.columna.data)
+                           form.descripcion.data, form.bodega.data, form.ubicacion.data, form.percha.data, form.fila.data, form.columna.data)
         flash(f"Caja agregada con número secuencial: {id_caja}")
         return redirect(url_for("cajas"))
     return render_template("add_caja.html", form=form)
@@ -537,6 +688,7 @@ def edit_caja(caja_id):
         form.años.data = caja["años"]
         form.tipo.data = caja["tipo_id"]
         form.observacion.data = caja["observacion"]
+        form.descripcion.data = caja["descripcion"] if "descripcion" in caja.keys() else ""
         form.bodega.data = caja["bodega_id"]
         form.ubicacion.data = caja["ubicacion_id"]
         form.percha.data = caja["percha"]
@@ -544,7 +696,7 @@ def edit_caja(caja_id):
         form.columna.data = caja["columna"]
     if form.validate_on_submit():
         update_caja(caja_id, form.departamento.data, form.años.data, form.tipo.data, form.observacion.data,
-                    form.bodega.data, form.ubicacion.data, form.percha.data, form.fila.data, form.columna.data)
+                    form.descripcion.data, form.bodega.data, form.ubicacion.data, form.percha.data, form.fila.data, form.columna.data)
         flash("Caja actualizada exitosamente.")
         return redirect(url_for("cajas"))
     return render_template("edit_caja.html", form=form, caja=caja)
