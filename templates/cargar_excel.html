@@ -1,0 +1,66 @@
+{% extends 'base.html' %}
+
+{% block title %}Cargar Cajas desde Excel{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-md-8 offset-md-2">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h4>Cargar Cajas desde Archivo Excel</h4>
+                </div>
+                <div class="card-body">
+                    <form method="POST" enctype="multipart/form-data">
+                        {{ form.hidden_tag() }}
+                        
+                        <div class="mb-4">
+                            <h5>Instrucciones:</h5>
+                            <p>El archivo Excel debe contener las siguientes columnas:</p>
+                            <ul class="list-group mb-3">
+                                <li class="list-group-item">id-caja</li>
+                                <li class="list-group-item">Departamento (debe existir en el sistema)</li>
+                                <li class="list-group-item">Años</li>
+                                <li class="list-group-item">Tipo (debe existir en el sistema)</li>
+                                <li class="list-group-item">Observacion (opcional)</li>
+                                <li class="list-group-item">Descripcion (opcional)</li>
+                                <li class="list-group-item">Bodega (debe existir en el sistema)</li>
+                                <li class="list-group-item">Ubicacion (debe existir en el sistema)</li>
+                                <li class="list-group-item">Percha</li>
+                                <li class="list-group-item">Fila</li>
+                                <li class="list-group-item">Columna</li>
+                            </ul>
+                            <div class="alert alert-info">
+                                <i class="fas fa-info-circle"></i> Asegúrese de que los nombres de Departamento, Tipo, Bodega y Ubicación coincidan exactamente con los registrados en el sistema.
+                            </div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            {{ form.archivo.label(class="form-label") }}
+                            {{ form.archivo(class="form-control") }}
+                            {% if form.archivo.errors %}
+                                <div class="alert alert-danger mt-1">
+                                    {% for error in form.archivo.errors %}
+                                        {{ error }}
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="d-grid gap-2">
+                            {{ form.submit(class="btn btn-primary") }}
+                            <a href="{{ url_for('cajas') }}" class="btn btn-secondary">Cancelar</a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+            
+            <div class="mt-3">
+                <a href="{{ url_for('cajas') }}" class="btn btn-outline-secondary">
+                    <i class="fas fa-arrow-left"></i> Volver a Cajas
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -2,7 +2,10 @@
 {% block title %}Cajas{% endblock %}
 {% block content %}
 <h2>Cajas</h2>
-<a href="{{ url_for('add_caja_route') }}" class="btn btn-success mb-3">Agregar Caja</a>
+<div class="mb-3">
+  <a href="{{ url_for('add_caja_route') }}" class="btn btn-success">Agregar Caja</a>
+  <a href="{{ url_for('cargar_excel') }}" class="btn btn-primary"><i class="fas fa-file-excel"></i> Cargar desde Excel</a>
+</div>
 <table class="table table-bordered table-striped">
   <thead>
     <tr>

@@ -8,11 +8,13 @@ import threading
 import smtplib
 import schedule
 import qrcode
+import pandas as pd
 from email.mime.text import MIMEText
+from werkzeug.utils import secure_filename
 
-from flask import Flask, render_template, request, redirect, url_for, flash, g
+from flask import Flask, render_template, request, redirect, url_for, flash, g, send_from_directory
 from flask_wtf import FlaskForm
-from wtforms import StringField, PasswordField, SubmitField, TextAreaField, DateField, IntegerField, SelectField
+from wtforms import StringField, PasswordField, SubmitField, TextAreaField, DateField, IntegerField, SelectField, FileField
 from wtforms.validators import DataRequired, Length, EqualTo, Email
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -21,6 +23,12 @@ from jinja2 import TemplateNotFound
 # Configuración de la aplicación
 app = Flask(__name__)
 app.secret_key = "una_clave_secreta_muy_segura"  # Cambia esto en producción
+app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB max-limit para archivos
+app.config['UPLOAD_FOLDER'] = 'uploads'
+
+# Crear directorio de uploads si no existe
+if not os.path.exists(app.config['UPLOAD_FOLDER']):
+    os.makedirs(app.config['UPLOAD_FOLDER'])
 
 # Configuración de Flask-Login
 login_manager = LoginManager()
@@ -263,6 +271,15 @@ class PrestamoForm(FlaskForm):
     email = StringField("Correo del Responsable", validators=[DataRequired(), Email()])
     submit = SubmitField("Guardar Préstamo")
 
+# Formulario para cargar archivo Excel
+class ExcelUploadForm(FlaskForm):
+    archivo = FileField('Archivo Excel', validators=[DataRequired()])
+    submit = SubmitField('Cargar Archivo')
+    
+    def __init__(self, *args, **kwargs):
+        super(ExcelUploadForm, self).__init__(*args, **kwargs)
+        self.archivo.description = "El archivo debe incluir las columnas: id_caja (opcional), Departamento, Años, Tipo, Observacion (opcional), Descripcion (opcional), Bodega, Ubicacion, Percha, Fila, Columna"
+
 # Formularios para los nuevos catálogos
 class DepartamentoForm(FlaskForm):
     nombre = StringField("Nombre del Departamento", validators=[DataRequired()])
@@ -284,6 +301,122 @@ class UbicacionForm(FlaskForm):
 # ========================================================
 # Funciones para manejo de catálogos y cajas
 # ========================================================
+
+def procesar_excel_cajas(archivo_path):
+    """Procesa un archivo Excel para importar cajas a la base de datos.
+    El archivo debe tener las siguientes columnas:
+    - id_caja (opcional, si no se proporciona se generará automáticamente)
+    - Departamento (nombre del departamento)
+    - Años
+    - Tipo (nombre del tipo)
+    - Observacion (opcional)
+    - Descripcion (opcional)
+    - Bodega (nombre de la bodega)
+    - Ubicacion (nombre de la ubicación)
+    - Percha
+    - Fila
+    - Columna
+    """
+    try:
+        # Leer el archivo Excel
+        df = pd.read_excel(archivo_path)
+        
+        # Verificar columnas requeridas
+        columnas_requeridas = ['Departamento', 'Años', 'Tipo', 'Bodega', 'Ubicacion', 'Percha', 'Fila', 'Columna']
+        columnas_faltantes = [col for col in columnas_requeridas if col not in df.columns]
+        
+        if columnas_faltantes:
+            return False, f"Faltan columnas requeridas: {', '.join(columnas_faltantes)}"
+        
+        # Obtener mapeo de nombres a IDs
+        conn = get_db_connection()
+        departamentos = {d['nombre']: d['id'] for d in conn.execute("SELECT id, nombre FROM departamentos").fetchall()}
+        tipos = {t['nombre']: t['id'] for t in conn.execute("SELECT id, nombre FROM tipos").fetchall()}
+        bodegas = {b['nombre']: b['id'] for b in conn.execute("SELECT id, nombre FROM bodegas").fetchall()}
+        ubicaciones = {u['nombre']: u['id'] for u in conn.execute("SELECT id, nombre FROM ubicaciones").fetchall()}
+        
+        # Verificar IDs de cajas existentes
+        cajas_existentes = {c['id_caja'] for c in conn.execute("SELECT id_caja FROM cajas").fetchall()}
+        conn.close()
+        
+        # Procesar cada fila
+        cajas_agregadas = 0
+        errores = []
+        
+        for i, row in df.iterrows():
+            try:
+                # Verificar si existen los catálogos
+                if row['Departamento'] not in departamentos:
+                    errores.append(f"Fila {i+2}: Departamento '{row['Departamento']}' no existe")
+                    continue
+                    
+                if row['Tipo'] not in tipos:
+                    errores.append(f"Fila {i+2}: Tipo '{row['Tipo']}' no existe")
+                    continue
+                    
+                if row['Bodega'] not in bodegas:
+                    errores.append(f"Fila {i+2}: Bodega '{row['Bodega']}' no existe")
+                    continue
+                    
+                if row['Ubicacion'] not in ubicaciones:
+                    errores.append(f"Fila {i+2}: Ubicación '{row['Ubicacion']}' no existe")
+                    continue
+                
+                # Obtener valores
+                departamento_id = departamentos[row['Departamento']]
+                años = str(row['Años'])
+                tipo_id = tipos[row['Tipo']]
+                observacion = str(row.get('Observacion', '')) if not pd.isna(row.get('Observacion', '')) else ''
+                descripcion = str(row.get('Descripcion', '')) if not pd.isna(row.get('Descripcion', '')) else ''
+                bodega_id = bodegas[row['Bodega']]
+                ubicacion_id = ubicaciones[row['Ubicacion']]
+                percha = str(row['Percha'])
+                fila = str(row['Fila'])
+                columna = str(row['Columna'])
+                
+                # Verificar si se proporciona id_caja
+                if 'id_caja' in df.columns and not pd.isna(row['id_caja']):
+                    id_caja = str(row['id_caja'])
+                    
+                    # Verificar si ya existe
+                    if id_caja in cajas_existentes:
+                        errores.append(f"Fila {i+2}: El ID de caja '{id_caja}' ya existe en la base de datos")
+                        continue
+                    
+                    # Agregar caja con id_caja específico
+                    conn = get_db_connection()
+                    cursor = conn.cursor()
+                    qr_filename = os.path.join(QR_DIR, f"{id_caja}.png")
+                    generate_qr_code(id_caja, qr_filename)
+                    cursor.execute(
+                        "INSERT INTO cajas (id_caja, departamento_id, años, tipo_id, observacion, descripcion, bodega_id, ubicacion_id, percha, fila, columna, qr_path) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                        (id_caja, departamento_id, años, tipo_id, observacion, descripcion, bodega_id, ubicacion_id, percha, fila, columna, qr_filename)
+                    )
+                    conn.commit()
+                    conn.close()
+                    
+                    # Actualizar conjunto de IDs existentes
+                    cajas_existentes.add(id_caja)
+                else:
+                    # Usar la función existente para generar id_caja automáticamente
+                    add_caja(departamento_id, años, tipo_id, observacion, descripcion, bodega_id, ubicacion_id, percha, fila, columna)
+                
+                cajas_agregadas += 1
+                
+            except Exception as e:
+                errores.append(f"Error en fila {i+2}: {str(e)}")
+        
+        # Preparar mensaje de resultado
+        mensaje = f"Se importaron {cajas_agregadas} cajas correctamente."
+        if errores:
+            mensaje += f" Hubo {len(errores)} errores: {'; '.join(errores[:5])}"
+            if len(errores) > 5:
+                mensaje += f" y {len(errores) - 5} más."
+        
+        return True, mensaje
+        
+    except Exception as e:
+        return False, f"Error al procesar el archivo: {str(e)}"
 def generate_qr_code(data, filename):
     img = qrcode.make(data)
     img.save(filename)
@@ -644,6 +777,34 @@ def register():
 # ========================================================
 # Rutas Principales (Protegidas)
 # ========================================================
+
+@app.route('/cargar_excel', methods=['GET', 'POST'])
+@login_required
+def cargar_excel():
+    form = ExcelUploadForm()
+    
+    if form.validate_on_submit():
+        # Guardar el archivo
+        archivo = form.archivo.data
+        filename = secure_filename(archivo.filename)
+        file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+        archivo.save(file_path)
+        
+        # Procesar el archivo
+        exito, mensaje = procesar_excel_cajas(file_path)
+        
+        # Eliminar el archivo después de procesarlo
+        if os.path.exists(file_path):
+            os.remove(file_path)
+        
+        if exito:
+            flash(mensaje, 'success')
+        else:
+            flash(mensaje, 'danger')
+            
+        return redirect(url_for('cajas'))
+    
+    return render_template('cargar_excel.html', form=form)
 @app.route("/")
 @login_required
 def index():
