@@ -19,6 +19,7 @@
         <th>Años</th>
         <th>Tipo</th>
         <th>Observación</th>
+        <th>Descripción</th>
         <th>Bodega</th>
         <th>Ubicación</th>
         <th>Percha</th>
@@ -35,7 +36,16 @@
         <td>{{ caja.departamento }}</td>
         <td>{{ caja.años }}</td>
         <td>{{ caja.tipo }}</td>
-        <td>{{ caja.observacion }}</td>
+        <td>
+          <div class="text-wrap" style="max-width: 150px; max-height: 80px; overflow-y: auto;">
+            {{ caja.observacion }}
+          </div>
+        </td>
+        <td>
+          <div class="text-wrap" style="max-width: 200px; max-height: 100px; overflow-y: auto;">
+            {{ caja.descripcion }}
+          </div>
+        </td>
         <td>{{ caja.bodega }}</td>
         <td>{{ caja.ubicacion }}</td>
         <td>{{ caja.percha }}</td>

@@ -489,8 +489,18 @@ def search_cajas(search_term):
         LEFT JOIN tipos ON cajas.tipo_id = tipos.id
         LEFT JOIN bodegas ON cajas.bodega_id = bodegas.id
         LEFT JOIN ubicaciones ON cajas.ubicacion_id = ubicaciones.id
-        WHERE id_caja LIKE ? OR percha LIKE ? OR fila LIKE ? OR columna LIKE ? OR años LIKE ?
-    """, (pattern, pattern, pattern, pattern, pattern))
+        WHERE id_caja LIKE ? 
+        OR percha LIKE ? 
+        OR fila LIKE ? 
+        OR columna LIKE ? 
+        OR años LIKE ? 
+        OR departamentos.nombre LIKE ? 
+        OR tipos.nombre LIKE ? 
+        OR bodegas.nombre LIKE ? 
+        OR ubicaciones.nombre LIKE ? 
+        OR observacion LIKE ? 
+        OR descripcion LIKE ?
+    """, (pattern, pattern, pattern, pattern, pattern, pattern, pattern, pattern, pattern, pattern, pattern))
     results = cursor.fetchall()
     conn.close()
     return results
