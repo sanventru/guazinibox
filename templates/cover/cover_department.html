@@ -43,8 +43,14 @@
 
     {% for caja in cajas %}
         <div class="portada-container">
-            {% set dept_name = (caja.departamento or "default") | replace(" ", "_") %}
-            {% set template_name = "cover/" ~ dept_name ~ ".html" %}
+            {% if dept_name is defined %}
+                {# Usar el dept_name pasado desde la función cover_department #}
+                {% set template_name = "cover/" ~ dept_name ~ ".html" %}
+            {% else %}
+                {# Fallback al comportamiento anterior si no se pasa dept_name #}
+                {% set dept_name = (caja.departamento or "default") | replace(" ", "_") | lower %}
+                {% set template_name = "cover/" ~ dept_name ~ ".html" %}
+            {% endif %}
             
             {# Intentamos incluir la plantilla específica del departamento #}
             {% include [template_name, "cover/default.html"] ignore missing %}

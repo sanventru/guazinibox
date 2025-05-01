@@ -1197,9 +1197,9 @@ def cover_caja(caja_id):
         return redirect(url_for("cajas"))
 
     # 2. Determinar la plantilla en base al nombre del departamento
-    #    - Reemplaza espacios por "_" para que coincida con tu archivo en cover/
-    dept_name = (caja["departamento"] or "default").replace(" ", "_")
-    template_name = f"{dept_name}.html"  # Por ejemplo: "Legal.html", "Archivo_General.html", etc.
+    #    - Reemplaza espacios por "_" y convierte a minúsculas para que coincida con tu archivo en cover/
+    dept_name = (caja["departamento"] or "default").lower().replace(" ", "_")
+    template_name = f"{dept_name}.html"  # Por ejemplo: "legal.html", "archivo_general.html", etc.
 
     # 3. Renderizar la plantilla
     try:
@@ -1227,15 +1227,22 @@ def cover_department(dep_id):
         WHERE departamentos.id = ?
         ORDER BY CAST(cajas.id_caja AS INTEGER) ASC
     """, (dep_id,)).fetchall()
+    
+    # Obtener el nombre del departamento para usar la plantilla específica
+    departamento_info = conn.execute("SELECT nombre FROM departamentos WHERE id = ?", (dep_id,)).fetchone()
     conn.close()
 
     if not cajas:
         flash("No hay cajas en este departamento.")
         return redirect(url_for("cajas"))
-
-    # Renderiza una plantilla que contenga todas las carátulas de forma secuencial
-    # Cada carátula usará su propia plantilla o un 'include' interno, según prefieras
-    return render_template("cover/cover_department.html", cajas=cajas)
+    
+    # Guardar el nombre del departamento para usar en la plantilla
+    dept_name = departamento_info['nombre'].lower().replace(' ', '_') if departamento_info else 'default'
+    
+    # Renderizar la plantilla cover_department.html que incluye la plantilla específica del departamento
+    # La plantilla cover_department.html ya tiene la lógica para intentar usar la plantilla del departamento
+    # o usar default.html si no existe
+    return render_template("cover/cover_department.html", cajas=cajas, dept_name=dept_name)
 
 
 
