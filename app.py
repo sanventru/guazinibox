@@ -81,15 +81,15 @@ def create_tables():
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS bodegas (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
-            nombre TEXT NOT NULL
+            nombre TEXT NOT NULL,
+            tamano TEXT
         )
     """)
-    # Tabla de ubicaciones (con tamaño)
+    # Tabla de ubicaciones
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS ubicaciones (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
-            nombre TEXT NOT NULL,
-            tamano TEXT
+            nombre TEXT NOT NULL
         )
     """)
     # Tabla de cajas con los nuevos campos
@@ -291,11 +291,11 @@ class TipoForm(FlaskForm):
 
 class BodegaForm(FlaskForm):
     nombre = StringField("Nombre de la Bodega", validators=[DataRequired()])
+    tamano = StringField("Tamaño (en metros)", validators=[DataRequired()])
     submit = SubmitField("Guardar Bodega")
 
 class UbicacionForm(FlaskForm):
     nombre = StringField("Nombre de la Ubicación", validators=[DataRequired()])
-    tamano = StringField("Tamaño (en metros)", validators=[DataRequired()])
     submit = SubmitField("Guardar Ubicación")
 
 # ========================================================
@@ -1051,7 +1051,7 @@ def add_bodega():
     form = BodegaForm()
     if form.validate_on_submit():
         conn = get_db_connection()
-        conn.execute("INSERT INTO bodegas (nombre) VALUES (?)", (form.nombre.data,))
+        conn.execute("INSERT INTO bodegas (nombre, tamano) VALUES (?, ?)", (form.nombre.data, form.tamano.data))
         conn.commit()
         conn.close()
         flash("Bodega agregada.")
@@ -1070,9 +1070,10 @@ def edit_bodega(bodega_id):
     form = BodegaForm()
     if request.method == "GET":
         form.nombre.data = bd["nombre"]
+        form.tamano.data = bd["tamano"] if bd["tamano"] else ""
     if form.validate_on_submit():
         conn = get_db_connection()
-        conn.execute("UPDATE bodegas SET nombre = ? WHERE id = ?", (form.nombre.data, bodega_id))
+        conn.execute("UPDATE bodegas SET nombre = ?, tamano = ? WHERE id = ?", (form.nombre.data, form.tamano.data, bodega_id))
         conn.commit()
         conn.close()
         flash("Bodega actualizada.")
@@ -1102,7 +1103,7 @@ def add_ubicacion():
     form = UbicacionForm()
     if form.validate_on_submit():
         conn = get_db_connection()
-        conn.execute("INSERT INTO ubicaciones (nombre, tamano) VALUES (?, ?)", (form.nombre.data, form.tamano.data))
+        conn.execute("INSERT INTO ubicaciones (nombre) VALUES (?)", (form.nombre.data,))
         conn.commit()
         conn.close()
         flash("Ubicación agregada.")
@@ -1121,10 +1122,9 @@ def edit_ubicacion(ubicacion_id):
     form = UbicacionForm()
     if request.method == "GET":
         form.nombre.data = ub["nombre"]
-        form.tamano.data = ub["tamano"]
     if form.validate_on_submit():
         conn = get_db_connection()
-        conn.execute("UPDATE ubicaciones SET nombre = ?, tamano = ? WHERE id = ?", (form.nombre.data, form.tamano.data, ubicacion_id))
+        conn.execute("UPDATE ubicaciones SET nombre = ? WHERE id = ?", (form.nombre.data, ubicacion_id))
         conn.commit()
         conn.close()
         flash("Ubicación actualizada.")
