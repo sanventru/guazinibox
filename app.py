@@ -1253,6 +1253,8 @@ def cover_department(dep_id):
 @app.route("/print-cover-caja", methods=["GET", "POST"])
 @login_required
 def print_cover_caja():
+    search_term = request.args.get('search', '')
+    
     if request.method == "POST":
         caja_id = request.form.get("caja_id")
         if caja_id:
@@ -1260,11 +1262,31 @@ def print_cover_caja():
         else:
             flash("Por favor, seleccione una caja", "warning")
     
-    # Obtener todas las cajas para el selector
+    # Obtener cajas filtradas por el término de búsqueda
     conn = get_db_connection()
-    cajas = conn.execute("""
-        SELECT cajas.id, cajas.id_caja, departamentos.nombre AS departamento
-        FROM cajas
+    
+    if search_term:
+        # Búsqueda con filtro
+        cajas = conn.execute("""
+            SELECT cajas.id, cajas.id_caja, departamentos.nombre AS departamento,
+                   tipos.nombre AS tipo, cajas.años, cajas.observacion, cajas.descripcion
+            FROM cajas
+            LEFT JOIN departamentos ON cajas.departamento_id = departamentos.id
+            LEFT JOIN tipos ON cajas.tipo_id = tipos.id
+            WHERE cajas.id_caja LIKE ? OR 
+                  departamentos.nombre LIKE ? OR
+                  tipos.nombre LIKE ? OR
+                  cajas.años LIKE ? OR
+                  cajas.observacion LIKE ? OR
+                  cajas.descripcion LIKE ?
+            ORDER BY cajas.id_caja
+        """, ('%' + search_term + '%', '%' + search_term + '%', '%' + search_term + '%', 
+              '%' + search_term + '%', '%' + search_term + '%', '%' + search_term + '%')).fetchall()
+    else:
+        # Sin filtro, mostrar todas las cajas
+        cajas = conn.execute("""
+            SELECT cajas.id, cajas.id_caja, departamentos.nombre AS departamento
+            FROM cajas
         LEFT JOIN departamentos ON cajas.departamento_id = departamentos.id
         ORDER BY CAST(cajas.id_caja AS INTEGER) ASC
     """).fetchall()

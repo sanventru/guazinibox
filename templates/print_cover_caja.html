@@ -4,24 +4,50 @@
 <div class="container">
   <h2 class="mb-4">Imprimir Portada de Caja</h2>
   
+  <!-- Formulario de búsqueda -->
+  <div class="card mb-4">
+    <div class="card-header bg-light">
+      <h5 class="mb-0">Buscar caja</h5>
+    </div>
+    <div class="card-body">
+      <form method="GET" action="{{ url_for('print_cover_caja') }}" class="row g-3">
+        <div class="col-md-8">
+          <input type="text" name="search" class="form-control" placeholder="Buscar por ID, departamento, tipo, años, observación o descripción" value="{{ request.args.get('search', '') }}">
+        </div>
+        <div class="col-md-4">
+          <button type="submit" class="btn btn-primary me-2">Buscar</button>
+          <a href="{{ url_for('print_cover_caja') }}" class="btn btn-outline-secondary">Limpiar</a>
+        </div>
+      </form>
+    </div>
+  </div>
+  
+  <!-- Selector de caja -->
   <div class="card">
     <div class="card-header">
       <h5 class="mb-0">Seleccione una caja para imprimir su portada</h5>
     </div>
     <div class="card-body">
-      <form method="POST" action="{{ url_for('print_cover_caja') }}">
-        <div class="mb-3">
-          <label for="caja_id" class="form-label">Caja</label>
-          <select name="caja_id" id="caja_id" class="form-select" required>
-            <option value="">-- Seleccione una caja --</option>
-            {% for caja in cajas %}
-              <option value="{{ caja.id }}">Caja {{ caja.id_caja }} - {{ caja.departamento }}</option>
-            {% endfor %}
-          </select>
+      {% if cajas %}
+        <form method="POST" action="{{ url_for('print_cover_caja') }}">
+          <div class="mb-3">
+            <label for="caja_id" class="form-label">Caja</label>
+            <select name="caja_id" id="caja_id" class="form-select" required>
+              <option value="">-- Seleccione una caja --</option>
+              {% for caja in cajas %}
+                <option value="{{ caja.id }}">Caja {{ caja.id_caja }} - {{ caja.departamento }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <button type="submit" class="btn btn-primary">Imprimir Portada</button>
+          <a href="{{ url_for('index') }}" class="btn btn-secondary">Cancelar</a>
+        </form>
+      {% else %}
+        <div class="alert alert-info mb-0">
+          No se encontraron cajas que coincidan con su búsqueda.
+          <a href="{{ url_for('print_cover_caja') }}" class="alert-link">Ver todas las cajas</a>
         </div>
-        <button type="submit" class="btn btn-primary">Imprimir Portada</button>
-        <a href="{{ url_for('index') }}" class="btn btn-secondary">Cancelar</a>
-      </form>
+      {% endif %}
     </div>
   </div>
 </div>
