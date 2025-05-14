@@ -30,6 +30,11 @@ app.config['UPLOAD_FOLDER'] = 'uploads'
 if not os.path.exists(app.config['UPLOAD_FOLDER']):
     os.makedirs(app.config['UPLOAD_FOLDER'])
 
+# Crear directorio para archivos exportados si no existe
+EXPORT_FOLDER = 'exports'
+if not os.path.exists(EXPORT_FOLDER):
+    os.makedirs(EXPORT_FOLDER)
+
 # Configuración de Flask-Login
 login_manager = LoginManager()
 login_manager.login_view = "login"
@@ -376,7 +381,8 @@ def procesar_excel_cajas(archivo_path):
                 
                 # Verificar si se proporciona id_caja
                 if 'id_caja' in df.columns and not pd.isna(row['id_caja']):
-                    id_caja = str(row['id_caja'])
+                    # Asegurar que el id_caja tenga 5 dígitos, rellenando con ceros a la izquierda
+                    id_caja = str(int(row['id_caja'])).zfill(5)
                     
                     # Verificar si ya existe
                     if id_caja in cajas_existentes:
@@ -428,7 +434,7 @@ def get_next_id_caja():
     max_id = cursor.fetchone()[0]
     conn.close()
     next_id = 1 if max_id is None else int(max_id) + 1
-    return str(next_id).zfill(4)
+    return str(next_id).zfill(5)
 
 def add_caja(departamento_id, años, tipo_id, observacion, descripcion, bodega_id, ubicacion_id, percha, fila, columna):
     conn = get_db_connection()
@@ -504,6 +510,50 @@ def search_cajas(search_term):
     results = cursor.fetchall()
     conn.close()
     return results
+
+@app.route("/exportar_seleccionados", methods=["POST"])
+@login_required
+def exportar_seleccionados():
+    # Obtener los IDs de las cajas seleccionadas
+    cajas_ids = request.form.getlist('cajas_seleccionadas')
+    
+    if not cajas_ids:
+        flash("No se seleccionaron cajas para exportar", "warning")
+        return redirect(url_for('cajas'))
+    
+    # Obtener los datos de las cajas seleccionadas
+    cajas_data = []
+    for caja_id in cajas_ids:
+        caja = get_caja_by_id(caja_id)
+        if caja:
+            cajas_data.append({
+                'ID': caja['id'],
+                'ID Caja': caja['id_caja'],
+                'Departamento': caja['departamento'],
+                'Años': caja['años'],
+                'Tipo': caja['tipo'],
+                'Observación': caja['observacion'],
+                'Descripción': caja['descripcion'],
+                'Bodega': caja['bodega'],
+                'Ubicación': caja['ubicacion'],
+                'Percha': caja['percha'],
+                'Fila': caja['fila'],
+                'Columna': caja['columna']
+            })
+    
+    # Crear un DataFrame con los datos
+    df = pd.DataFrame(cajas_data)
+    
+    # Generar un nombre de archivo único
+    timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+    filename = f"cajas_exportadas_{timestamp}.xlsx"
+    file_path = os.path.join(EXPORT_FOLDER, filename)
+    
+    # Guardar el DataFrame como archivo Excel
+    df.to_excel(file_path, index=False)
+    
+    # Enviar el archivo al usuario
+    return send_from_directory(directory=os.path.abspath(EXPORT_FOLDER), path=filename, as_attachment=True)
 
 def get_all_cajas():
     conn = get_db_connection()
@@ -821,11 +871,15 @@ def index():
     return render_template("index.html", user=current_user)
 
 # Gestión de Cajas
-@app.route("/cajas")
+@app.route("/cajas", methods=["GET"])
 @login_required
 def cajas():
-    cajas = get_all_cajas()
-    return render_template("cajas.html", cajas=cajas)
+    search_term = request.args.get('search', '')
+    if search_term:
+        cajas = search_cajas(search_term)
+    else:
+        cajas = get_all_cajas()
+    return render_template("cajas.html", cajas=cajas, search_term=search_term)
 
 @app.route("/add_caja", methods=["GET", "POST"])
 @login_required

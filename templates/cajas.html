@@ -5,10 +5,27 @@
 <div class="mb-3">
   <a href="{{ url_for('add_caja_route') }}" class="btn btn-success">Agregar Caja</a>
   <a href="{{ url_for('cargar_excel') }}" class="btn btn-primary"><i class="fas fa-file-excel"></i> Cargar desde Excel</a>
+  <button id="exportar-seleccionados" class="btn btn-info"><i class="fas fa-file-export"></i> Exportar Seleccionados</button>
 </div>
+
+<div class="mb-4">
+  <form action="{{ url_for('cajas') }}" method="GET" class="form-inline">
+    <div class="input-group w-100">
+      <input type="text" name="search" class="form-control" placeholder="Buscar por cualquier campo..." value="{{ search_term }}">
+      <div class="input-group-append">
+        <button class="btn btn-outline-primary" type="submit"><i class="fas fa-search"></i> Buscar</button>
+        {% if search_term %}
+          <a href="{{ url_for('cajas') }}" class="btn btn-outline-secondary"><i class="fas fa-times"></i> Limpiar</a>
+        {% endif %}
+      </div>
+    </div>
+  </form>
+</div>
+<form id="form-seleccion" action="{{ url_for('exportar_seleccionados') }}" method="POST">
 <table class="table table-bordered table-striped">
   <thead>
     <tr>
+      <th><input type="checkbox" id="seleccionar-todos"> Seleccionar</th>
       <th>ID</th>
       <th>ID Caja</th>
       <th>Departamento</th>
@@ -28,6 +45,7 @@
   <tbody>
     {% for caja in cajas %}
     <tr>
+      <td><input type="checkbox" name="cajas_seleccionadas" value="{{ caja.id }}" class="checkbox-caja"></td>
       <td>{{ caja.id }}</td>
       <td>{{ caja.id_caja }}</td>
       <td>{{ caja.departamento }}</td>
@@ -61,4 +79,59 @@
     {% endfor %}
   </tbody>
 </table>
+</form>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script>
+  // Ejecutar cuando el DOM esté completamente cargado
+  window.onload = function() {
+    console.log('DOM cargado completamente');
+    
+    // Seleccionar todos los checkboxes
+    const selectAllCheckbox = document.getElementById('seleccionar-todos');
+    const cajaCheckboxes = document.querySelectorAll('.checkbox-caja');
+    
+    console.log('Checkbox principal:', selectAllCheckbox);
+    console.log('Checkboxes de cajas encontrados:', cajaCheckboxes.length);
+    
+    if (selectAllCheckbox) {
+      selectAllCheckbox.addEventListener('click', function() {
+        console.log('Checkbox principal clickeado, estado:', this.checked);
+        cajaCheckboxes.forEach(checkbox => {
+          checkbox.checked = selectAllCheckbox.checked;
+        });
+      });
+    }
+    
+    // Exportar seleccionados
+    const exportarBtn = document.getElementById('exportar-seleccionados');
+    console.log('Botón exportar:', exportarBtn);
+    
+    if (exportarBtn) {
+      exportarBtn.addEventListener('click', function(e) {
+        console.log('Botón exportar clickeado');
+        e.preventDefault(); // Prevenir comportamiento por defecto del botón
+        
+        const seleccionados = document.querySelectorAll('.checkbox-caja:checked');
+        console.log('Cajas seleccionadas:', seleccionados.length);
+        
+        if (seleccionados.length === 0) {
+          alert('Por favor, seleccione al menos una caja para exportar.');
+          return;
+        }
+        
+        // Enviar el formulario
+        const formulario = document.getElementById('form-seleccion');
+        if (formulario) {
+          console.log('Enviando formulario');
+          formulario.submit();
+        } else {
+          console.error('Formulario no encontrado');
+        }
+      });
+    }
+  };
+</script>
 {% endblock %}
