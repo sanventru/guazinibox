@@ -10,11 +10,13 @@
 </form>
 {% if cajas %}
   <h3>Resultados:</h3>
+  <div class="table-responsive">
   <table class="table table-bordered table-striped">
     <thead>
       <tr>
         <th>ID</th>
         <th>ID Caja</th>
+        <th>Código Caja</th>
         <th>Departamento</th>
         <th>Años</th>
         <th>Tipo</th>
@@ -25,7 +27,7 @@
         <th>Percha</th>
         <th>Fila</th>
         <th>Columna</th>
-        <th>QR</th>
+        <th>Acciones</th>
       </tr>
     </thead>
     <tbody>
@@ -33,6 +35,7 @@
       <tr>
         <td>{{ caja.id }}</td>
         <td>{{ caja.id_caja }}</td>
+        <td>{{ caja.codigo_caja }}</td>
         <td>{{ caja.departamento }}</td>
         <td>{{ caja.años }}</td>
         <td>{{ caja.tipo }}</td>
@@ -52,12 +55,16 @@
         <td>{{ caja.fila }}</td>
         <td>{{ caja.columna }}</td>
         <td>
-          <img src="{{ url_for('static', filename='qr_codes/' ~ caja.id_caja ~ '.png') }}" alt="QR" width="80">
+          <a href="{{ url_for('edit_caja', caja_id=caja.id) }}" class="btn btn-primary btn-sm">Editar</a>
+          <form action="{{ url_for('delete_caja_route', caja_id=caja.id) }}" method="POST" style="display:inline-block;" onsubmit="return confirm('¿Estás seguro de eliminar esta caja?');">
+            <button type="submit" class="btn btn-danger btn-sm">Eliminar</button>
+          </form>
         </td>
       </tr>
       {% endfor %}
     </tbody>
   </table>
+</div>
 {% elif query %}
   <p>No se encontraron resultados.</p>
 {% endif %}

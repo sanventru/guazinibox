@@ -102,6 +102,7 @@ def create_tables():
         CREATE TABLE IF NOT EXISTS cajas (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             id_caja TEXT,
+            codigo_caja TEXT,
             departamento_id INTEGER,
             años TEXT,
             tipo_id INTEGER,
@@ -256,6 +257,7 @@ class ResetPasswordForm(FlaskForm):
 
 # Nuevo formulario para cajas con los nuevos campos
 class CajaForm(FlaskForm):
+    codigo_caja = StringField("Código de Caja", validators=[DataRequired()])
     departamento = SelectField("Departamento", choices=[], coerce=int, validators=[DataRequired()])
     años = StringField("Años", validators=[DataRequired()])
     tipo = SelectField("Tipo", choices=[], coerce=int, validators=[DataRequired()])
@@ -283,7 +285,7 @@ class ExcelUploadForm(FlaskForm):
     
     def __init__(self, *args, **kwargs):
         super(ExcelUploadForm, self).__init__(*args, **kwargs)
-        self.archivo.description = "El archivo debe incluir las columnas: id_caja (opcional), Departamento, Años, Tipo, Observacion (opcional), Descripcion (opcional), Bodega, Ubicacion, Percha, Fila, Columna"
+        self.archivo.description = "El archivo debe incluir las columnas: id_caja (opcional), codigo_caja, Departamento, Años, Tipo, Observacion (opcional), Descripcion (opcional), Bodega, Ubicacion, Percha, Fila, Columna"
 
 # Formularios para los nuevos catálogos
 class DepartamentoForm(FlaskForm):
@@ -311,6 +313,7 @@ def procesar_excel_cajas(archivo_path):
     """Procesa un archivo Excel para importar cajas a la base de datos.
     El archivo debe tener las siguientes columnas:
     - id_caja (opcional, si no se proporciona se generará automáticamente)
+    - codigo_caja (código alfanumérico de la caja)
     - Departamento (nombre del departamento)
     - Años
     - Tipo (nombre del tipo)
@@ -327,7 +330,7 @@ def procesar_excel_cajas(archivo_path):
         df = pd.read_excel(archivo_path)
         
         # Verificar columnas requeridas
-        columnas_requeridas = ['Departamento', 'Años', 'Tipo', 'Bodega', 'Ubicacion', 'Percha', 'Fila', 'Columna']
+        columnas_requeridas = ['codigo_caja', 'Departamento', 'Años', 'Tipo', 'Bodega', 'Ubicacion', 'Percha', 'Fila', 'Columna']
         columnas_faltantes = [col for col in columnas_requeridas if col not in df.columns]
         
         if columnas_faltantes:
@@ -368,6 +371,7 @@ def procesar_excel_cajas(archivo_path):
                     continue
                 
                 # Obtener valores
+                codigo_caja = str(row.get('codigo_caja', '')) if not pd.isna(row.get('codigo_caja', '')) else ''
                 departamento_id = departamentos[row['Departamento']]
                 años = str(row['Años'])
                 tipo_id = tipos[row['Tipo']]
@@ -395,8 +399,8 @@ def procesar_excel_cajas(archivo_path):
                     qr_filename = os.path.join(QR_DIR, f"{id_caja}.png")
                     generate_qr_code(id_caja, qr_filename)
                     cursor.execute(
-                        "INSERT INTO cajas (id_caja, departamento_id, años, tipo_id, observacion, descripcion, bodega_id, ubicacion_id, percha, fila, columna, qr_path) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-                        (id_caja, departamento_id, años, tipo_id, observacion, descripcion, bodega_id, ubicacion_id, percha, fila, columna, qr_filename)
+                        "INSERT INTO cajas (id_caja, codigo_caja, departamento_id, años, tipo_id, observacion, descripcion, bodega_id, ubicacion_id, percha, fila, columna, qr_path) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                        (id_caja, codigo_caja, departamento_id, años, tipo_id, observacion, descripcion, bodega_id, ubicacion_id, percha, fila, columna, qr_filename)
                     )
                     conn.commit()
                     conn.close()
@@ -405,7 +409,7 @@ def procesar_excel_cajas(archivo_path):
                     cajas_existentes.add(id_caja)
                 else:
                     # Usar la función existente para generar id_caja automáticamente
-                    add_caja(departamento_id, años, tipo_id, observacion, descripcion, bodega_id, ubicacion_id, percha, fila, columna)
+                    add_caja(departamento_id, años, tipo_id, observacion, descripcion, bodega_id, ubicacion_id, percha, fila, columna, codigo_caja)
                 
                 cajas_agregadas += 1
                 
@@ -436,26 +440,26 @@ def get_next_id_caja():
     next_id = 1 if max_id is None else int(max_id) + 1
     return str(next_id).zfill(5)
 
-def add_caja(departamento_id, años, tipo_id, observacion, descripcion, bodega_id, ubicacion_id, percha, fila, columna):
+def add_caja(departamento_id, años, tipo_id, observacion, descripcion, bodega_id, ubicacion_id, percha, fila, columna, codigo_caja=''):
     conn = get_db_connection()
     cursor = conn.cursor()
     id_caja = get_next_id_caja()
     qr_filename = os.path.join(QR_DIR, f"{id_caja}.png")
     generate_qr_code(id_caja, qr_filename)
     cursor.execute(
-       "INSERT INTO cajas (id_caja, departamento_id, años, tipo_id, observacion, descripcion, bodega_id, ubicacion_id, percha, fila, columna, qr_path) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-       (id_caja, departamento_id, años, tipo_id, observacion, descripcion, bodega_id, ubicacion_id, percha, fila, columna, qr_filename)
+       "INSERT INTO cajas (id_caja, codigo_caja, departamento_id, años, tipo_id, observacion, descripcion, bodega_id, ubicacion_id, percha, fila, columna, qr_path) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+       (id_caja, codigo_caja, departamento_id, años, tipo_id, observacion, descripcion, bodega_id, ubicacion_id, percha, fila, columna, qr_filename)
     )
     conn.commit()
     conn.close()
     return id_caja
 
-def update_caja(caja_id, departamento_id, años, tipo_id, observacion, descripcion, bodega_id, ubicacion_id, percha, fila, columna):
+def update_caja(caja_id, departamento_id, años, tipo_id, observacion, descripcion, bodega_id, ubicacion_id, percha, fila, columna, codigo_caja):
     conn = get_db_connection()
     cursor = conn.cursor()
     cursor.execute(
-        "UPDATE cajas SET departamento_id = ?, años = ?, tipo_id = ?, observacion = ?, descripcion = ?, bodega_id = ?, ubicacion_id = ?, percha = ?, fila = ?, columna = ? WHERE id = ?",
-        (departamento_id, años, tipo_id, observacion, descripcion, bodega_id, ubicacion_id, percha, fila, columna, caja_id)
+        "UPDATE cajas SET codigo_caja = ?, departamento_id = ?, años = ?, tipo_id = ?, observacion = ?, descripcion = ?, bodega_id = ?, ubicacion_id = ?, percha = ?, fila = ?, columna = ? WHERE id = ?",
+        (codigo_caja, departamento_id, años, tipo_id, observacion, descripcion, bodega_id, ubicacion_id, percha, fila, columna, caja_id)
     )
     conn.commit()
     conn.close()
@@ -483,33 +487,67 @@ def get_caja_by_id(caja_id):
     conn.close()
     return caja
 
-def search_cajas(search_term):
+def search_cajas(search_term, page=1, per_page=50):
     conn = get_db_connection()
-    cursor = conn.cursor()
-    pattern = f"%{search_term}%"
-    cursor.execute("""
-        SELECT cajas.*, departamentos.nombre AS departamento, tipos.nombre AS tipo, 
-               bodegas.nombre AS bodega, ubicaciones.nombre AS ubicacion
-        FROM cajas
-        LEFT JOIN departamentos ON cajas.departamento_id = departamentos.id
-        LEFT JOIN tipos ON cajas.tipo_id = tipos.id
-        LEFT JOIN bodegas ON cajas.bodega_id = bodegas.id
-        LEFT JOIN ubicaciones ON cajas.ubicacion_id = ubicaciones.id
-        WHERE id_caja LIKE ? 
-        OR percha LIKE ? 
-        OR fila LIKE ? 
-        OR columna LIKE ? 
-        OR años LIKE ? 
-        OR departamentos.nombre LIKE ? 
-        OR tipos.nombre LIKE ? 
-        OR bodegas.nombre LIKE ? 
-        OR ubicaciones.nombre LIKE ? 
-        OR observacion LIKE ? 
-        OR descripcion LIKE ?
-    """, (pattern, pattern, pattern, pattern, pattern, pattern, pattern, pattern, pattern, pattern, pattern))
-    results = cursor.fetchall()
+    search_pattern = f'%{search_term}%'
+    
+    # Obtener el total de resultados para la paginación
+    total = conn.execute("""
+        SELECT COUNT(*) 
+        FROM cajas c
+        LEFT JOIN departamentos d ON c.departamento_id = d.id
+        LEFT JOIN tipos t ON c.tipo_id = t.id
+        LEFT JOIN bodegas b ON c.bodega_id = b.id
+        LEFT JOIN ubicaciones u ON c.ubicacion_id = u.id
+        WHERE c.id_caja LIKE ? 
+        OR c.codigo_caja LIKE ? 
+        OR d.nombre LIKE ? 
+        OR c.años LIKE ? 
+        OR t.nombre LIKE ? 
+        OR c.observacion LIKE ? 
+        OR c.descripcion LIKE ? 
+        OR b.nombre LIKE ? 
+        OR u.nombre LIKE ? 
+        OR c.percha LIKE ? 
+        OR c.fila LIKE ? 
+        OR c.columna LIKE ?
+    """, (search_pattern, search_pattern, search_pattern, 
+          search_pattern, search_pattern, search_pattern,
+          search_pattern, search_pattern, search_pattern,
+          search_pattern, search_pattern, search_pattern)).fetchone()[0]
+    
+    # Calcular el offset para la paginación
+    offset = (page - 1) * per_page
+    
+    # Obtener los resultados para la página actual
+    cajas = conn.execute("""
+        SELECT c.*, d.nombre as departamento, t.nombre as tipo, 
+        b.nombre as bodega, u.nombre as ubicacion
+        FROM cajas c
+        LEFT JOIN departamentos d ON c.departamento_id = d.id
+        LEFT JOIN tipos t ON c.tipo_id = t.id
+        LEFT JOIN bodegas b ON c.bodega_id = b.id
+        LEFT JOIN ubicaciones u ON c.ubicacion_id = u.id
+        WHERE c.id_caja LIKE ? 
+        OR c.codigo_caja LIKE ? 
+        OR d.nombre LIKE ? 
+        OR c.años LIKE ? 
+        OR t.nombre LIKE ? 
+        OR c.observacion LIKE ? 
+        OR c.descripcion LIKE ? 
+        OR b.nombre LIKE ? 
+        OR u.nombre LIKE ? 
+        OR c.percha LIKE ? 
+        OR c.fila LIKE ? 
+        OR c.columna LIKE ?
+        LIMIT ? OFFSET ?
+    """, (search_pattern, search_pattern, search_pattern, 
+          search_pattern, search_pattern, search_pattern,
+          search_pattern, search_pattern, search_pattern,
+          search_pattern, search_pattern, search_pattern,
+          per_page, offset)).fetchall()
     conn.close()
-    return results
+    return cajas, total
 
 @app.route("/exportar_seleccionados", methods=["POST"])
 @login_required
@@ -529,6 +567,7 @@ def exportar_seleccionados():
             cajas_data.append({
                 'ID': caja['id'],
                 'ID Caja': caja['id_caja'],
+                'Código Caja': caja['codigo_caja'],
                 'Departamento': caja['departamento'],
                 'Años': caja['años'],
                 'Tipo': caja['tipo'],
@@ -555,19 +594,28 @@ def exportar_seleccionados():
     # Enviar el archivo al usuario
     return send_from_directory(directory=os.path.abspath(EXPORT_FOLDER), path=filename, as_attachment=True)
 
-def get_all_cajas():
+def get_all_cajas(page=1, per_page=50):
     conn = get_db_connection()
+    # Calcular el offset para la paginación
+    offset = (page - 1) * per_page
+    
+    # Obtener el total de cajas para la paginación
+    total = conn.execute("SELECT COUNT(*) FROM cajas").fetchone()[0]
+    
+    # Obtener las cajas para la página actual
     cajas = conn.execute("""
-        SELECT cajas.*, departamentos.nombre AS departamento, tipos.nombre AS tipo, 
-               bodegas.nombre AS bodega, ubicaciones.nombre AS ubicacion
-        FROM cajas
-        LEFT JOIN departamentos ON cajas.departamento_id = departamentos.id
-        LEFT JOIN tipos ON cajas.tipo_id = tipos.id
-        LEFT JOIN bodegas ON cajas.bodega_id = bodegas.id
-        LEFT JOIN ubicaciones ON cajas.ubicacion_id = ubicaciones.id
-    """).fetchall()
+        SELECT c.*, d.nombre as departamento, t.nombre as tipo, 
+        b.nombre as bodega, u.nombre as ubicacion 
+        FROM cajas c
+        LEFT JOIN departamentos d ON c.departamento_id = d.id
+        LEFT JOIN tipos t ON c.tipo_id = t.id
+        LEFT JOIN bodegas b ON c.bodega_id = b.id
+        LEFT JOIN ubicaciones u ON c.ubicacion_id = u.id
+        LIMIT ? OFFSET ?
+    """, (per_page, offset)).fetchall()
     conn.close()
-    return cajas
+    
+    return cajas, total
 
 def add_prestamo(caja_id, item, loan_date, due_date, email):
     conn = get_db_connection()
@@ -875,11 +923,40 @@ def index():
 @login_required
 def cajas():
     search_term = request.args.get('search', '')
+    page = request.args.get('page', 1, type=int)
+    
+    # Obtener per_page y asegurarse de que sea un entero
+    try:
+        per_page_str = request.args.get('per_page', '50')
+        per_page = int(per_page_str)
+        print(f"Valor per_page recibido: {per_page_str}, convertido a: {per_page}")
+    except (ValueError, TypeError):
+        per_page = 50
+        print(f"Error al convertir per_page, usando valor predeterminado: {per_page}")
+    
+    # Solo asegurar que per_page no sea negativo o cero
+    if per_page < 1:
+        per_page = 50  # Valor predeterminado si está fuera de rango
+        print(f"per_page fuera de rango, establecido a: {per_page}")
+    # No hay límite superior, el usuario puede ver tantas cajas como desee
+    
     if search_term:
-        cajas = search_cajas(search_term)
+        cajas, total = search_cajas(search_term, page, per_page)
     else:
-        cajas = get_all_cajas()
-    return render_template("cajas.html", cajas=cajas, search_term=search_term)
+        cajas, total = get_all_cajas(page, per_page)
+    
+    # Calcular número total de páginas
+    total_pages = (total + per_page - 1) // per_page
+    
+    return render_template(
+        "cajas.html", 
+        cajas=cajas, 
+        search_term=search_term, 
+        page=page, 
+        total_pages=total_pages, 
+        total=total,
+        per_page=per_page
+    )
 
 @app.route("/add_caja", methods=["GET", "POST"])
 @login_required
@@ -889,10 +966,12 @@ def add_caja_route():
     form.tipo.choices = [(t["id"], t["nombre"]) for t in get_tipos()]
     form.bodega.choices = [(b["id"], b["nombre"]) for b in get_bodegas()]
     form.ubicacion.choices = [(u["id"], u["nombre"]) for u in get_ubicaciones()]
+    
     if form.validate_on_submit():
-        id_caja = add_caja(form.departamento.data, form.años.data, form.tipo.data, form.observacion.data,
-                           form.descripcion.data, form.bodega.data, form.ubicacion.data, form.percha.data, form.fila.data, form.columna.data)
-        flash(f"Caja agregada con número secuencial: {id_caja}")
+        id_caja = add_caja(form.departamento.data, form.años.data, form.tipo.data, form.observacion.data, 
+                form.descripcion.data, form.bodega.data, form.ubicacion.data, form.percha.data, 
+                form.fila.data, form.columna.data, form.codigo_caja.data)
+        flash(f"Caja agregada con número secuencial: {id_caja}", "success")
         return redirect(url_for("cajas"))
     return render_template("add_caja.html", form=form)
 
@@ -909,6 +988,7 @@ def edit_caja(caja_id):
     form.bodega.choices = [(b["id"], b["nombre"]) for b in get_bodegas()]
     form.ubicacion.choices = [(u["id"], u["nombre"]) for u in get_ubicaciones()]
     if request.method == "GET":
+        form.codigo_caja.data = caja["codigo_caja"] if "codigo_caja" in caja.keys() else ""
         form.departamento.data = caja["departamento_id"]
         form.años.data = caja["años"]
         form.tipo.data = caja["tipo_id"]
@@ -921,7 +1001,7 @@ def edit_caja(caja_id):
         form.columna.data = caja["columna"]
     if form.validate_on_submit():
         update_caja(caja_id, form.departamento.data, form.años.data, form.tipo.data, form.observacion.data,
-                    form.descripcion.data, form.bodega.data, form.ubicacion.data, form.percha.data, form.fila.data, form.columna.data)
+                    form.descripcion.data, form.bodega.data, form.ubicacion.data, form.percha.data, form.fila.data, form.columna.data, form.codigo_caja.data)
         flash("Caja actualizada exitosamente.")
         return redirect(url_for("cajas"))
     return render_template("edit_caja.html", form=form, caja=caja)
@@ -929,9 +1009,36 @@ def edit_caja(caja_id):
 @app.route("/delete_caja/<int:caja_id>", methods=["POST"])
 @login_required
 def delete_caja_route(caja_id):
+    # Verificar si la caja existe
+    caja = get_caja_by_id(caja_id)
+    if not caja:
+        flash('La caja no existe', 'danger')
+        return redirect(url_for('cajas'))
+    
+    # Eliminar la caja
     delete_caja(caja_id)
-    flash("Caja eliminada exitosamente.")
-    return redirect(url_for("cajas"))
+    flash('Caja eliminada con éxito', 'success')
+    return redirect(url_for('cajas'))
+
+@app.route("/limpiar_base", methods=["POST"])
+@login_required
+def limpiar_base():
+    # Obtener la clave ingresada en el formulario
+    clave = request.form.get('clave', '')
+    
+    # Verificar si la clave es correcta
+    if clave != "guazini77.*":
+        flash('Clave incorrecta. No se eliminaron las cajas.', 'danger')
+        return redirect(url_for('cajas'))
+    
+    # Eliminar todas las cajas
+    conn = get_db_connection()
+    conn.execute("DELETE FROM cajas")
+    conn.commit()
+    conn.close()
+    
+    flash('Base de cajas limpiada con éxito', 'success')
+    return redirect(url_for('cajas'))
 
 @app.route("/search_caja", methods=["GET"])
 @login_required
@@ -939,7 +1046,8 @@ def search_caja():
     query = request.args.get("query", "")
     cajas_result = None
     if query:
-        cajas_result = search_cajas(query)
+        # La función search_cajas ahora devuelve una tupla (cajas, total)
+        cajas_result, _ = search_cajas(query)
     return render_template("search_caja.html", cajas=cajas_result, query=query)
 
 # Gestión de Préstamos (sin cambios significativos)
@@ -1221,6 +1329,16 @@ def print_qr():
             (start_val, end_val)
         ).fetchall()
         conn.close()
+        
+        # Asegurarse de que los códigos QR existan para cada caja
+        for caja in cajas:
+            qr_filename = os.path.join(QR_DIR, f"{caja['id_caja']}.png")
+            # Verificar si el archivo existe, si no existe o es muy antiguo, regenerarlo
+            if not os.path.exists(qr_filename):
+                qr_data = f"ID: {caja['id_caja']}\nCódigo: {caja['codigo_caja']}\nDepartamento: {caja['departamento']}\nTipo: {caja['tipo']}"
+                generate_qr_code(qr_data, qr_filename)
+                print(f"Generado QR para caja {caja['id_caja']}")
+                
         return render_template("print_qr.html", cajas=cajas, start_range=start_range, end_range=end_range)
     # GET: Mostrar formulario para ingresar el rango.
     return render_template("print_qr_form.html")
@@ -1249,6 +1367,14 @@ def cover_caja(caja_id):
     if not caja:
         flash("Caja no encontrada.")
         return redirect(url_for("cajas"))
+        
+    # Asegurarse de que el código QR exista para esta caja
+    qr_filename = os.path.join(QR_DIR, f"{caja['id_caja']}.png")
+    # Verificar si el archivo existe, si no existe, regenerarlo
+    if not os.path.exists(qr_filename):
+        qr_data = f"ID: {caja['id_caja']}\nCódigo: {caja['codigo_caja']}\nDepartamento: {caja['departamento']}\nTipo: {caja['tipo']}"
+        generate_qr_code(qr_data, qr_filename)
+        print(f"Generado QR para caja {caja['id_caja']}")
 
     # 2. Determinar la plantilla en base al nombre del departamento
     #    - Reemplaza espacios por "_" y convierte a minúsculas para que coincida con tu archivo en cover/
@@ -1289,6 +1415,15 @@ def cover_department(dep_id):
     if not cajas:
         flash("No hay cajas en este departamento.")
         return redirect(url_for("cajas"))
+        
+    # Asegurarse de que los códigos QR existan para todas las cajas del departamento
+    for caja in cajas:
+        qr_filename = os.path.join(QR_DIR, f"{caja['id_caja']}.png")
+        # Verificar si el archivo existe, si no existe, regenerarlo
+        if not os.path.exists(qr_filename):
+            qr_data = f"ID: {caja['id_caja']}\nCódigo: {caja['codigo_caja']}\nDepartamento: {caja['departamento']}\nTipo: {caja['tipo']}"
+            generate_qr_code(qr_data, qr_filename)
+            print(f"Generado QR para caja {caja['id_caja']}")
     
     # Guardar el nombre del departamento para usar en la plantilla
     dept_name = departamento_info['nombre'].lower().replace(' ', '_') if departamento_info else 'default'

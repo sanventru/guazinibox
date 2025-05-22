@@ -159,6 +159,7 @@
       </div>
       <div class="header-right">
         <div><span class="label">No. Caja:</span> {{ caja.id_caja }}</div>
+        <div><span class="label">Código Caja:</span> {{ caja.codigo_caja }}</div>
         {% if caja.qr_path %}
           <img class="qr-code" src="{{ url_for('static', filename='qr_codes/' ~ caja.id_caja ~ '.png') }}" alt="QR {{ caja.id_caja }}">
         {% endif %}

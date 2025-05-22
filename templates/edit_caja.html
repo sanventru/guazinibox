@@ -5,6 +5,11 @@
 <form method="POST">
   {{ form.hidden_tag() }}
   <div class="mb-3">
+    {{ form.codigo_caja.label(class="form-label") }}
+    {{ form.codigo_caja(class="form-control") }}
+    <small class="form-text text-muted">Código alfanumérico de la caja</small>
+  </div>
+  <div class="mb-3">
     {{ form.departamento.label(class="form-label") }}
     {{ form.departamento(class="form-select") }}
   </div>

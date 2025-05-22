@@ -5,7 +5,9 @@
 <div class="mb-3">
   <a href="{{ url_for('add_caja_route') }}" class="btn btn-success">Agregar Caja</a>
   <a href="{{ url_for('cargar_excel') }}" class="btn btn-primary"><i class="fas fa-file-excel"></i> Cargar desde Excel</a>
-  <button id="exportar-seleccionados" class="btn btn-info"><i class="fas fa-file-export"></i> Exportar Seleccionados</button>
+  <button type="button" class="btn btn-danger" data-bs-toggle="modal" data-bs-target="#limpiarBaseModal">
+    <i class="fas fa-trash"></i> Limpiar Base
+  </button>
 </div>
 
 <div class="mb-4">
@@ -21,13 +23,42 @@
     </div>
   </form>
 </div>
-<form id="form-seleccion" action="{{ url_for('exportar_seleccionados') }}" method="POST">
+<!-- Información de paginación y botones de acción -->
+<div class="mb-3 d-flex justify-content-between align-items-center">
+  <div>
+    <button id="exportar-seleccionados" class="btn btn-info"><i class="fas fa-file-export"></i> Exportar Seleccionados</button>
+  </div>
+  <div class="d-flex align-items-center">
+    <div class="mr-3">
+      <form id="per-page-form" class="form-inline" action="{{ url_for('cajas') }}" method="GET">
+        <div class="input-group">
+          <label class="mr-2">Items por página:</label>
+          <input type="number" name="per_page" class="form-control" value="{{ per_page }}" min="1" style="width: 80px;" id="per-page-input">
+          <div class="input-group-append">
+            <button type="submit" class="btn btn-outline-secondary">Aplicar</button>
+          </div>
+          {% if search_term %}
+            <input type="hidden" name="search" value="{{ search_term }}">
+          {% endif %}
+          <input type="hidden" name="page" value="1">
+        </div>
+      </form>
+    </div>
+    <div class="text-muted">
+      Mostrando {{ cajas|length }} de {{ total }} cajas (Página {{ page }} de {{ total_pages }})
+    </div>
+  </div>
+</div>
+
+<!-- Tabla de cajas con carga optimizada -->
+<div class="table-responsive">
 <table class="table table-bordered table-striped">
   <thead>
     <tr>
       <th><input type="checkbox" id="seleccionar-todos"> Seleccionar</th>
       <th>ID</th>
       <th>ID Caja</th>
+      <th>Código Caja</th>
       <th>Departamento</th>
       <th>Años</th>
       <th>Tipo</th>
@@ -38,7 +69,6 @@
       <th>Percha</th>
       <th>Fila</th>
       <th>Columna</th>
-      <th>QR</th>
       <th>Acciones</th>
     </tr>
   </thead>
@@ -48,6 +78,7 @@
       <td><input type="checkbox" name="cajas_seleccionadas" value="{{ caja.id }}" class="checkbox-caja"></td>
       <td>{{ caja.id }}</td>
       <td>{{ caja.id_caja }}</td>
+      <td>{{ caja.codigo_caja }}</td>
       <td>{{ caja.departamento }}</td>
       <td>{{ caja.años }}</td>
       <td>{{ caja.tipo }}</td>
@@ -67,9 +98,6 @@
       <td>{{ caja.fila }}</td>
       <td>{{ caja.columna }}</td>
       <td>
-        <img src="{{ url_for('static', filename='qr_codes/' ~ caja.id_caja ~ '.png') }}" alt="QR" width="80">
-      </td>
-      <td>
         <a href="{{ url_for('edit_caja', caja_id=caja.id) }}" class="btn btn-primary btn-sm">Editar</a>
         <form action="{{ url_for('delete_caja_route', caja_id=caja.id) }}" method="POST" style="display:inline-block;" onsubmit="return confirm('¿Estás seguro de eliminar esta caja?');">
           <button type="submit" class="btn btn-danger btn-sm">Eliminar</button>
@@ -79,36 +107,135 @@
     {% endfor %}
   </tbody>
 </table>
+</div>
+
+<!-- Paginación -->
+<nav aria-label="Navegación de páginas">
+  <ul class="pagination justify-content-center">
+    {% if page > 1 %}
+      <li class="page-item">
+        <a class="page-link" href="{{ url_for('cajas', page=page-1, search=search_term, per_page=per_page) }}">Anterior</a>
+      </li>
+    {% else %}
+      <li class="page-item disabled">
+        <span class="page-link">Anterior</span>
+      </li>
+    {% endif %}
+    
+    {% set start_page = [1, page - 2]|max %}
+    {% set end_page = [total_pages, start_page + 4]|min %}
+    {% set start_page = [1, end_page - 4]|max %}
+    
+    {% if start_page > 1 %}
+      <li class="page-item">
+        <a class="page-link" href="{{ url_for('cajas', page=1, search=search_term, per_page=per_page) }}">1</a>
+      </li>
+      {% if start_page > 2 %}
+        <li class="page-item disabled"><span class="page-link">...</span></li>
+      {% endif %}
+    {% endif %}
+    
+    {% for num in range(start_page, end_page + 1) %}
+      <li class="page-item {% if num == page %}active{% endif %}">
+        <a class="page-link" href="{{ url_for('cajas', page=num, search=search_term, per_page=per_page) }}">{{ num }}</a>
+      </li>
+    {% endfor %}
+    
+    {% if end_page < total_pages %}
+      {% if end_page < total_pages - 1 %}
+        <li class="page-item disabled"><span class="page-link">...</span></li>
+      {% endif %}
+      <li class="page-item">
+        <a class="page-link" href="{{ url_for('cajas', page=total_pages, search=search_term, per_page=per_page) }}">{{ total_pages }}</a>
+      </li>
+    {% endif %}
+    
+    {% if page < total_pages %}
+      <li class="page-item">
+        <a class="page-link" href="{{ url_for('cajas', page=page+1, search=search_term, per_page=per_page) }}">Siguiente</a>
+      </li>
+    {% else %}
+      <li class="page-item disabled">
+        <span class="page-link">Siguiente</span>
+      </li>
+    {% endif %}
+  </ul>
+</nav>
+
+<!-- Formulario oculto para exportar cajas seleccionadas -->
+<form id="form-seleccion" action="{{ url_for('exportar_seleccionados') }}" method="POST" style="display:none;">
+  <!-- Los checkboxes seleccionados se clonarán aquí mediante JavaScript -->
 </form>
+
+<!-- Modal para confirmar la limpieza de la base de datos -->
+<div class="modal fade" id="limpiarBaseModal" tabindex="-1" aria-labelledby="limpiarBaseModalLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header bg-danger text-white">
+        <h5 class="modal-title" id="limpiarBaseModalLabel">Confirmar eliminación</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <form action="{{ url_for('limpiar_base') }}" method="POST" id="limpiarBaseForm">
+        <div class="modal-body">
+          <div class="alert alert-warning">
+            <i class="fas fa-exclamation-triangle"></i> 
+            <strong>ATENCIÓN:</strong> Esta acción eliminará TODAS las cajas de la base de datos. Esta acción no se puede deshacer.
+          </div>
+          <p>Para confirmar, ingrese la clave de seguridad:</p>
+          <div class="form-group">
+            <input type="password" class="form-control" name="clave" id="claveSeguridad" required>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+          <button type="submit" class="btn btn-danger">Eliminar todas las cajas</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
 {% endblock %}
 
 {% block scripts %}
 {{ super() }}
 <script>
-  // Ejecutar cuando el DOM esté completamente cargado
-  window.onload = function() {
-    console.log('DOM cargado completamente');
-    
+  function onload() {
     // Seleccionar todos los checkboxes
     const selectAllCheckbox = document.getElementById('seleccionar-todos');
-    const cajaCheckboxes = document.querySelectorAll('.checkbox-caja');
-    
-    console.log('Checkbox principal:', selectAllCheckbox);
-    console.log('Checkboxes de cajas encontrados:', cajaCheckboxes.length);
-    
+    const checkboxes = document.querySelectorAll('.checkbox-caja');
+  
+    console.log('Checkboxes encontrados:', checkboxes.length);
+  
     if (selectAllCheckbox) {
-      selectAllCheckbox.addEventListener('click', function() {
-        console.log('Checkbox principal clickeado, estado:', this.checked);
-        cajaCheckboxes.forEach(checkbox => {
-          checkbox.checked = selectAllCheckbox.checked;
+      selectAllCheckbox.addEventListener('change', function() {
+        const isChecked = selectAllCheckbox.checked;
+        checkboxes.forEach(function(checkbox) {
+          checkbox.checked = isChecked;
         });
       });
     }
     
+    // Configurar la carga diferida de imágenes QR
+    const images = document.querySelectorAll('img[data-src]');
+    const loadImages = function() {
+      images.forEach(function(img) {
+        if (img.getBoundingClientRect().top < window.innerHeight + 500) {
+          img.src = img.dataset.src;
+          img.removeAttribute('data-src');
+        }
+      });
+    };
+
+    // Cargar las imágenes visibles inicialmente
+    loadImages();
+
+    // Cargar más imágenes al hacer scroll
+    window.addEventListener('scroll', loadImages);
+  
     // Exportar seleccionados
     const exportarBtn = document.getElementById('exportar-seleccionados');
     console.log('Botón exportar:', exportarBtn);
-    
+  
     if (exportarBtn) {
       exportarBtn.addEventListener('click', function(e) {
         console.log('Botón exportar clickeado');
@@ -122,16 +249,52 @@
           return;
         }
         
-        // Enviar el formulario
+        // Limpiar el formulario de exportación
         const formulario = document.getElementById('form-seleccion');
+        formulario.innerHTML = '';
+        
+        // Clonar los checkboxes seleccionados al formulario de exportación
+        seleccionados.forEach(function(checkbox) {
+          const input = document.createElement('input');
+          input.type = 'hidden';
+          input.name = 'cajas_seleccionadas';
+          input.value = checkbox.value;
+          formulario.appendChild(input);
+        });
+        
+        // Enviar el formulario
         if (formulario) {
-          console.log('Enviando formulario');
+          console.log('Enviando formulario con', seleccionados.length, 'cajas seleccionadas');
           formulario.submit();
         } else {
           console.error('Formulario no encontrado');
         }
       });
     }
-  };
+  }
+  
+  // Ejecutar cuando el DOM esté completamente cargado
+  document.addEventListener('DOMContentLoaded', function() {
+    onload();
+    
+    // Asegurar que el valor de per_page se envíe correctamente
+    const perPageForm = document.getElementById('per-page-form');
+    const perPageInput = document.getElementById('per-page-input');
+    
+    if (perPageForm && perPageInput) {
+      perPageForm.addEventListener('submit', function(e) {
+        // Validar que el valor sea un número positivo
+        const value = parseInt(perPageInput.value);
+        if (isNaN(value) || value < 1) {
+          e.preventDefault();
+          alert('Por favor ingrese un número positivo mayor a cero.');
+          return false;
+        }
+        
+        // Asegurarse de que el valor se envíe como parámetro en la URL
+        console.log('Enviando formulario con per_page =', value);
+      });
+    }
+  });
 </script>
 {% endblock %}
