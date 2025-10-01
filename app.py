@@ -120,7 +120,7 @@ def create_tables():
             FOREIGN KEY(ubicacion_id) REFERENCES ubicaciones(id)
         )
     """)
-    # Tabla de préstamos (sin cambios)
+    # Tabla de préstamos
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS prestamos (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -129,6 +129,7 @@ def create_tables():
             loan_date TEXT,
             due_date TEXT,
             returned INTEGER DEFAULT 0,
+            returned_date TEXT,
             email TEXT,
             FOREIGN KEY(caja_id) REFERENCES cajas(id)
         )
@@ -627,12 +628,12 @@ def add_prestamo(caja_id, item, loan_date, due_date, email):
     conn.commit()
     conn.close()
 
-def update_prestamo(prestamo_id, caja_id, item, loan_date, due_date, email, returned):
+def update_prestamo(prestamo_id, caja_id, item, loan_date, due_date, email, returned, returned_date=None):
     conn = get_db_connection()
     cursor = conn.cursor()
     cursor.execute(
-        "UPDATE prestamos SET caja_id = ?, item = ?, loan_date = ?, due_date = ?, email = ?, returned = ? WHERE id = ?",
-        (caja_id, item, loan_date, due_date, email, returned, prestamo_id)
+        "UPDATE prestamos SET caja_id = ?, item = ?, loan_date = ?, due_date = ?, email = ?, returned = ?, returned_date = ? WHERE id = ?",
+        (caja_id, item, loan_date, due_date, email, returned, returned_date, prestamo_id)
     )
     conn.commit()
     conn.close()
@@ -1084,9 +1085,10 @@ def edit_prestamo(prestamo_id):
         form.email.data = prestamo["email"]
     if form.validate_on_submit():
         returned = prestamo["returned"]
+        returned_date = prestamo["returned_date"] if "returned_date" in prestamo.keys() else None
         update_prestamo(prestamo_id, form.caja_id.data, form.item.data, 
                         form.loan_date.data.isoformat(), form.due_date.data.isoformat(), 
-                        form.email.data, returned)
+                        form.email.data, returned, returned_date)
         flash("Préstamo actualizado exitosamente.")
         return redirect(url_for("prestamos"))
     return render_template("edit_prestamo.html", form=form, prestamo=prestamo)
@@ -1096,6 +1098,22 @@ def edit_prestamo(prestamo_id):
 def delete_prestamo_route(prestamo_id):
     delete_prestamo(prestamo_id)
     flash("Préstamo eliminado exitosamente.")
+    return redirect(url_for("prestamos"))
+
+@app.route("/marcar_devuelto/<int:prestamo_id>", methods=["POST"])
+@login_required
+def marcar_devuelto(prestamo_id):
+    """Marca un préstamo como devuelto y registra la fecha de devolución"""
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    fecha_devolucion = datetime.date.today().isoformat()
+    cursor.execute(
+        "UPDATE prestamos SET returned = 1, returned_date = ? WHERE id = ?", 
+        (fecha_devolucion, prestamo_id)
+    )
+    conn.commit()
+    conn.close()
+    flash("Préstamo marcado como devuelto exitosamente.", "success")
     return redirect(url_for("prestamos"))
 
 # CRUD de Departamentos
